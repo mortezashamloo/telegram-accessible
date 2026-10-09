@@ -7,13 +7,6 @@
 - Disables R8 minify on release
 - Strips debug applicationIdSuffix .beta
 - Patches google-services.json so process*GoogleServices matches new package
-
-Env (optional GitHub Secrets):
-  A11Y_KEYSTORE_BASE64  - base64 of .jks/.keystore (preferred for stable updates)
-  A11Y_STORE_PASSWORD
-  A11Y_KEY_ALIAS
-  A11Y_KEY_PASSWORD
-  A11Y_APP_PACKAGE      - default org.telegram.messenger.accessible
 """
 from pathlib import Path
 import base64
@@ -41,7 +34,6 @@ def set_prop(text: str, key: str, value: str) -> str:
 
 
 def patch_google_services(package: str) -> None:
-    """Google Services plugin requires a client entry matching applicationId."""
     files = list(ROOT.rglob("google-services.json"))
     if not files:
         print("WARN: no google-services.json found")
@@ -65,7 +57,6 @@ def patch_google_services(package: str) -> None:
         if not clients:
             print(f"WARN: empty client list in {path}")
             continue
-        # Clone first client and set our package (enough for build; FCM may be limited)
         new_c = copy.deepcopy(clients[0])
         try:
             new_c["client_info"]["android_client_info"]["package_name"] = package
@@ -108,7 +99,6 @@ def main() -> int:
         ]
         subprocess.check_call(cmd)
         print(f"Generated new keystore at {KS_PATH}")
-        print("IMPORTANT: download keystore artifact and save as secret A11Y_KEYSTORE_BASE64 for updates.")
     else:
         print(f"Using existing keystore {KS_PATH}")
 
