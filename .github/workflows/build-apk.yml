@@ -1,0 +1,277 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+        with:
+          path: patches-repo
+
+      # a11y-fork: cache key based on the scripts folder (apply-a11y.py, A11yConfig.java,
+      # mehran-a11y.patch), so any change invalidates the Telegram clone cache.
+      - name: Compute patches cache key
+        id: patches_key
+        run: |
+          set -e
+          KEY=$(find patches-repo/scripts -type f \( -name '*.py' -o -name '*.patch' -o -name '*.java' \) -print0 2>/dev/null \
+                 | sort -z | xargs -0 cat 2>/dev/null | sha256sum | cut -c1-16)
+          if [ -z "$KEY" ]; then KEY="nopatches"; fi
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+          echo "Patches cache key: $KEY"
+
+      - name: Cache Telegram clone
+        id: cache_telegram
+        uses: actions/cache@v4
+        with:
+          path: telegram
+          key: telegram-${{ runner.os }}-${{ steps.patches_key.outputs.key }}
+
+      - name: Clone Telegram with submodules
+        if: steps.cache_telegram.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          git clone --recursive --depth 1 https://github.com/DrKLO/Telegram.git telegram
+          cd telegram
+          git submodule sync --recursive
+          git submodule update --init --recursive --depth 1 || git submodule update --init --recursive
+          if [ ! -f TMessagesProj/lib/jlatexmath/jlatexmath/build.gradle ] && [ ! -f TMessagesProj/lib/jlatexmath/build.gradle ]; then
+            rm -rf TMessagesProj/lib/jlatexmath
+            git clone --depth 1 https://github.com/dkaraush/jlatexmath-android.git TMessagesProj/lib/jlatexmath
+          fi
+
+      # When the clone came from cache, submodules may be missing files if the
+      # original clone was interrupted; refresh them just in case.
+      - name: Ensure submodules after cache restore
+        if: steps.cache_telegram.outputs.cache-hit == 'true'
+        run: |
+          set -e
+          cd telegram
+          git submodule sync --recursive || true
+          git submodule update --init --recursive --depth 1 || git submodule update --init --recursive || true
+          if [ ! -f TMessagesProj/lib/jlatexmath/jlatexmath/build.gradle ] && [ ! -f TMessagesProj/lib/jlatexmath/build.gradle ]; then
+            rm -rf TMessagesProj/lib/jlatexmath
+            git clone --depth 1 https://github.com/dkaraush/jlatexmath-android.git TMessagesProj/lib/jlatexmath
+          fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          packages: 'platform-tools build-tools;35.0.0 platforms;android-35'
+
+      # a11y-fork: cache Android NDK + CMake — downloading these is one of
+      # the slowest parts of the job.
+      - name: Cache Android NDK + CMake
+        id: cache_ndk
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
+            ${{ env.ANDROID_HOME }}/cmake/3.22.1
+          key: android-ndk-27.2.12479018-cmake-3.22.1-${{ runner.os }}
+
+      - name: Install SDK components
+        run: |
+          set -e
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+          if [ ! -d "$ANDROID_HOME/ndk/27.2.12479018" ]; then
+            sdkmanager --install "ndk;27.2.12479018"
+          else
+            echo "NDK 27.2.12479018 restored from cache"
+          fi
+          if [ ! -d "$ANDROID_HOME/cmake/3.22.1" ]; then
+            sdkmanager --install "cmake;3.22.1"
+          else
+            echo "CMake 3.22.1 restored from cache"
+          fi
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Accept Android SDK Licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      # a11y-fork: cache Gradle caches + wrapper. Huge speed-up on rebuilds.
+      # The key includes the patches hash so the Gradle build cache is
+      # invalidated when the applied source changes.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            telegram/.gradle
+          key: gradle-${{ runner.os }}-${{ steps.patches_key.outputs.key }}-${{ hashFiles('telegram/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-${{ steps.patches_key.outputs.key }}-
+            gradle-${{ runner.os }}-
+
+      - name: Inject API credentials
+        env:
+          API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          set -e
+          if [ -z "$API_ID" ] || [ -z "$API_HASH" ]; then
+            echo "ERROR: Set secrets TELEGRAM_API_ID and TELEGRAM_API_HASH"
+            exit 1
+          fi
+          python3 patches-repo/scripts/inject-api.py
+
+      - name: Wire jlatexmath module
+        run: |
+          set -e
+          cd telegram
+          if [ -f TMessagesProj/lib/jlatexmath/jlatexmath/build.gradle ]; then
+            JDIR="TMessagesProj/lib/jlatexmath/jlatexmath"
+          elif [ -f TMessagesProj/lib/jlatexmath/build.gradle ]; then
+            JDIR="TMessagesProj/lib/jlatexmath"
+          else
+            echo "ERROR: cannot locate jlatexmath build.gradle"
+            exit 1
+          fi
+          if ! grep -q "include ':jlatexmath'" settings.gradle; then
+            printf "\ninclude ':jlatexmath'\nproject(':jlatexmath').projectDir = new File(rootDir, '%s')\n" "$JDIR" >> settings.gradle
+          fi
+
+      - name: Apply a11y patches
+        run: |
+          set -e
+          A11Y="patches-repo/scripts/apply-a11y.py"
+          if [ ! -f "$A11Y" ]; then
+            echo "ERROR: $A11Y not found in repo"
+            exit 1
+          fi
+          if [ "$(wc -c < "$A11Y")" -lt 40000 ]; then
+            echo "ERROR: $A11Y is truncated ($(wc -c < "$A11Y") bytes); expected > 40000 bytes."
+            echo "Please upload the full apply-a11y.py to patches-repo/scripts/"
+            exit 1
+          fi
+          echo "Using $A11Y ($(wc -c < "$A11Y") bytes)"
+
+          python3 patches-repo/scripts/apply-a11y.py
+          if [ -f "$PWD/patches-repo/scripts/slim-arm64.py" ]; then
+            python3 "$PWD/patches-repo/scripts/slim-arm64.py" || true
+          fi
+
+      - name: Unique package id + private signing (Play Protect)
+        env:
+          A11Y_KEYSTORE_BASE64: ${{ secrets.A11Y_KEYSTORE_BASE64 }}
+          A11Y_STORE_PASSWORD: ${{ secrets.A11Y_STORE_PASSWORD }}
+          A11Y_KEY_PASSWORD: ${{ secrets.A11Y_KEY_PASSWORD }}
+          A11Y_KEY_ALIAS: ${{ secrets.A11Y_KEY_ALIAS }}
+          A11Y_APP_PACKAGE: ${{ secrets.A11Y_APP_PACKAGE }}
+        run: |
+          set -e
+          if [ -f "$PWD/patches-repo/scripts/prepare-release-signing.py" ]; then
+            python3 "$PWD/patches-repo/scripts/prepare-release-signing.py"
+          fi
+          echo "--- App build.gradle signing / release snippet ---"
+          grep -n "a11y-fork\|minifyEnabled\|storeFile\|applicationId\|APP_PACKAGE" telegram/TMessagesProj_App/build.gradle | head -40 || true
+          grep -n "^APP_PACKAGE\|^RELEASE_" telegram/gradle.properties || true
+
+      # Own package name (contains "shamloo"). It is set LAST, after prepare-release-signing.py, so
+      # nothing can overwrite it. google-services.json must also know the package, otherwise the
+      # google-services Gradle plugin stops the build with "No matching client found".
+      # NOTE: a different package name installs as a separate app next to any older build.
+      - name: Set package name (shamloo) and google-services entry
+        env:
+          A11Y_PACKAGE_NAME: com.shamloo.telegram.accessible
+        run: |
+          python3 - <<'PY'
+          import copy, glob, json, os, re
+          pkg = os.environ["A11Y_PACKAGE_NAME"]
+          assert re.fullmatch(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+", pkg), pkg
+          gp = "telegram/gradle.properties"
+          text = open(gp, encoding="utf-8").read()
+          if re.search(r"^APP_PACKAGE=.*$", text, re.M):
+              text = re.sub(r"^APP_PACKAGE=.*$", "APP_PACKAGE=" + pkg, text, flags=re.M)
+          else:
+              text += "\nAPP_PACKAGE=" + pkg + "\n"
+          open(gp, "w", encoding="utf-8").write(text)
+          print("APP_PACKAGE =", pkg)
+          for gs in glob.glob("telegram/**/google-services.json", recursive=True):
+              data = json.load(open(gs, encoding="utf-8"))
+              clients = data.get("client", [])
+              names = [c["client_info"]["android_client_info"]["package_name"] for c in clients]
+              if pkg in names:
+                  continue
+              base = next((c for c in clients
+                           if c["client_info"]["android_client_info"]["package_name"] == "org.telegram.messenger"), clients[0])
+              new = copy.deepcopy(base)
+              new["client_info"]["android_client_info"]["package_name"] = pkg
+              clients.append(new)
+              json.dump(data, open(gs, "w", encoding="utf-8"), indent=2)
+              print("google-services entry added:", gs)
+          PY
+          grep -n "^APP_PACKAGE" telegram/gradle.properties
+
+      - name: Build APK
+        working-directory: telegram
+        run: |
+          set -e
+          chmod +x gradlew
+          if ./gradlew :TMessagesProj_App:assembleAfatRelease --stacktrace --no-daemon; then
+            echo "BUILD_VARIANT=release" >> "$GITHUB_ENV"
+          else
+            echo "Release failed — falling back to afatDebug"
+            ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace --no-daemon
+            echo "BUILD_VARIANT=debug" >> "$GITHUB_ENV"
+          fi
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+
+      - name: Find APK
+        id: apk
+        run: |
+          set -e
+          APK=$(find telegram -path "*outputs/apk*" -name "*.apk" | head -n 1)
+          if [ -z "$APK" ] || [ ! -f "$APK" ]; then
+            echo "ERROR: no APK found"
+            find telegram -name "*.apk" 2>/dev/null | head -20 || true
+            exit 1
+          fi
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+          echo "Found APK: $APK"
+          ls -lh "$APK"
+
+      - name: Prepare Keystore File for Artifact
+        if: always()
+        run: |
+          mkdir -p telegram/TMessagesProj/config
+          KEYSTORE_FILE=$(find telegram -name "*.keystore" 2>/dev/null | head -n 1)
+          if [ -n "$KEYSTORE_FILE" ] && [ -f "$KEYSTORE_FILE" ]; then
+            echo "Found keystore at $KEYSTORE_FILE, copying to default path..."
+            cp "$KEYSTORE_FILE" telegram/TMessagesProj/config/a11y-release.keystore
+          else
+            echo "No keystore found, generating placeholder to prevent workflow failure..."
+            touch telegram/TMessagesProj/config/a11y-release.keystore
+          fi
+
+      - name: Upload keystore (save once as secret for updates)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-release-keystore
+          path: telegram/TMessagesProj/config/a11y-release.keystore
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-accessible-arm64
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          retention-days: 14
