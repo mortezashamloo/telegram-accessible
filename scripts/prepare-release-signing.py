@@ -4,7 +4,7 @@
 - Changes APP_PACKAGE away from official org.telegram.messenger
 - Generates (or restores from env) a private release keystore
 - Points gradle signing at that keystore
-- Disables R8 minify on release
+- Disables R8 minify on release AND resource shrinking (they must match)
 - Strips debug applicationIdSuffix .beta
 - Patches google-services.json so process*GoogleServices matches new package
 
@@ -112,13 +112,17 @@ def main() -> int:
     else:
         print(f"Using existing keystore {KS_PATH}")
 
+    # --- gradle.properties: unique package, signing, and DISABLE resource shrinking ---
     gp = GP.read_text(encoding="utf-8")
     gp = set_prop(gp, "APP_PACKAGE", package)
     gp = set_prop(gp, "RELEASE_STORE_PASSWORD", store_pass)
     gp = set_prop(gp, "RELEASE_KEY_PASSWORD", key_pass)
     gp = set_prop(gp, "RELEASE_KEY_ALIAS", alias)
+    # a11y-fork: must match minifyEnabled=false in App build.gradle
+    gp = set_prop(gp, "android.r8.optimizedResourceShrinking", "false")
     GP.write_text(gp, encoding="utf-8")
     print(f"APP_PACKAGE={package}")
+    print("android.r8.optimizedResourceShrinking=false OK")
 
     patch_google_services(package)
 
@@ -141,10 +145,11 @@ def main() -> int:
             )
             print("Removed .beta applicationIdSuffix OK")
 
+        # a11y-fork: disable minify AND shrinkResources together in release block
         if "a11y-fork: release no minify" not in t:
             t2, n = re.subn(
                 r"(release\s*\{[\s\S]*?)minifyEnabled\s+true",
-                r"\1// a11y-fork: release no minify\n            minifyEnabled false",
+                r"\1// a11y-fork: release no minify\n            minifyEnabled false\n            shrinkResources false",
                 t,
                 count=1,
             )
@@ -153,6 +158,19 @@ def main() -> int:
                 print("release minifyEnabled -> false OK")
             else:
                 print("WARN: could not disable release minifyEnabled")
+
+        # a11y-fork: catch any other shrinkResources true (e.g. inside a different block)
+        if "a11y-fork: shrinkResources off" not in t:
+            t2, n = re.subn(
+                r"(shrinkResources\s+)true",
+                r"\1false // a11y-fork: shrinkResources off",
+                t,
+            )
+            if n:
+                t = t2
+                print(f"shrinkResources -> false OK ({n} occurrences)")
+            else:
+                print("no extra shrinkResources true found (OK)")
 
         app_gradle.write_text(t, encoding="utf-8")
     else:
