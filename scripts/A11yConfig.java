@@ -22,6 +22,7 @@ public class A11yConfig {
     public static final String PREF_SHOW_STATUS_IN_PREVIEW = "a11y_show_status_preview";
     public static final String PREF_FORWARD_SAVED_NO_QUOTE = "a11y_forward_saved_no_quote";
     public static final String PREF_RECORDING_BEEP = "a11y_recording_beep";
+    public static final String PREF_DOWNLOAD_BEEP = "a11y_download_beep";
     public static final String PREF_SOLAR_CALENDAR = "a11y_solar_calendar";
     public static final String PREF_LINKS_MENU = "a11y_links_menu";
 
@@ -187,6 +188,45 @@ public class A11yConfig {
     // NOTE: apply-a11y.py flips this default to ON by default at build
     // time, so users get the beep out of the box and can disable it here.
     // ------------------------------------------------------------------
+
+    
+    public static final String PREF_DOWNLOAD_BEEP = "a11y_download_beep";
+    private static long lastDownloadBeepMs = 0;
+
+    /** Optional short beep when a download completes. Default OFF. */
+    public static boolean getDownloadBeep() {
+        try {
+            return MessagesController.getGlobalMainSettings().getBoolean(PREF_DOWNLOAD_BEEP, false);
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    public static void setDownloadBeep(boolean value) {
+        try {
+            MessagesController.getGlobalMainSettings().edit().putBoolean(PREF_DOWNLOAD_BEEP, value).apply();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    public static void playDownloadBeep() {
+        try {
+            if (!getDownloadBeep()) {
+                return;
+            }
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (now - lastDownloadBeepMs < 800) {
+                return;
+            }
+            lastDownloadBeepMs = now;
+            android.media.ToneGenerator a11yTone = new android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 85);
+            a11yTone.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 140);
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                try { a11yTone.release(); } catch (Throwable ignore) {}
+            }, 180);
+        } catch (Throwable ignore) {
+        }
+    }
 
     public static boolean getRecordingBeep() {
         try {

@@ -174,6 +174,7 @@ def _patch_a11y_string_resources() -> None:
         "A11yStatusOff": "Status preview off",
         "A11yForwardSavedNoQuoteLabel": "Forward to Saved Messages with no quote: %s",
         "A11yRecordingBeepLabel": "Recording start beep: %s",
+        "A11yDownloadBeepLabel": "Download complete beep: %s",
         "A11ySolarCalendarLabel": "Solar calendar: %s",
         "A11yBlockSmallFilesLabel": "Do not auto-download small files: %s",
         "A11yNoAutoDownloadLabel": "Do not auto-download files: %s",
@@ -259,6 +260,7 @@ def _patch_a11y_string_resources() -> None:
         "A11yStatusOn": "نمایش وضعیت روشن شد", "A11yStatusOff": "نمایش وضعیت خاموش شد",
         "A11yForwardSavedNoQuoteLabel": "فوروارد به پیام‌های ذخیره‌شده بدون نقل‌قول: %s",
         "A11yRecordingBeepLabel": "بوق شروع ضبط: %s",
+        "A11yDownloadBeepLabel": "بوق اتمام دانلود: %s",
         "A11ySolarCalendarLabel": "تقویم خورشیدی: %s",
         "A11yBlockSmallFilesLabel": "دانلود خودکار فایل‌های کم‌حجم را متوقف کن: %s",
         "A11yNoAutoDownloadLabel": "دانلود خودکار هیچ فایلی: %s",
@@ -685,6 +687,11 @@ def _inject_progress_announce(java_path: Path) -> None:
                                 a11yLastAnnouncedPercent = 100;
                                 parent.announceForAccessibility(org.telegram.messenger.LocaleController.getString(
                                         org.telegram.messenger.R.string.A11yDownloaded));
+                                try {
+                                    if (org.telegram.messenger.A11yConfig.getDownloadBeep()) {
+                                        org.telegram.messenger.A11yConfig.playDownloadBeep();
+                                    }
+                                } catch (Throwable ignoreBeep) {}
                             }
                         } else if (step != a11yLastAnnouncedPercent) {
                             a11yLastAnnouncedPercent = step;
@@ -3195,6 +3202,45 @@ def patch_a11y_settings_dialog_stays_open() -> None:
         t = _java_remove_method(t, sig)
     new_code = r"""
     // """ + marker + r"""
+    
+    public static final String PREF_DOWNLOAD_BEEP = "a11y_download_beep";
+    private static long lastDownloadBeepMs = 0;
+
+    /** Optional short beep when a download completes. Default OFF. */
+    public static boolean getDownloadBeep() {
+        try {
+            return MessagesController.getGlobalMainSettings().getBoolean(PREF_DOWNLOAD_BEEP, false);
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    public static void setDownloadBeep(boolean value) {
+        try {
+            MessagesController.getGlobalMainSettings().edit().putBoolean(PREF_DOWNLOAD_BEEP, value).apply();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    public static void playDownloadBeep() {
+        try {
+            if (!getDownloadBeep()) {
+                return;
+            }
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (now - lastDownloadBeepMs < 800) {
+                return;
+            }
+            lastDownloadBeepMs = now;
+            android.media.ToneGenerator a11yTone = new android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 85);
+            a11yTone.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 140);
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                try { a11yTone.release(); } catch (Throwable ignore) {}
+            }, 180);
+        } catch (Throwable ignore) {
+        }
+    }
+
     public static final String PREF_DOWNLOAD_STATE = "a11y_download_state";
 
     /** Say "Downloaded" / "Not downloaded" on every media message and music row. Default OFF. */
@@ -3670,6 +3716,10 @@ def patch_a11y_settings_dialog_stays_open() -> None:
                 case 21:
                     setForwardHere(!getForwardHere());
                     message = LocaleController.formatString(R.string.A11yForwardHereLabel, onOff(getForwardHere()));
+                    break;
+                case 22:
+                    setDownloadBeep(!getDownloadBeep());
+                    message = LocaleController.formatString(R.string.A11yDownloadBeepLabel, onOff(getDownloadBeep()));
                     break;
                 default:
                     return;
