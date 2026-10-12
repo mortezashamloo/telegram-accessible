@@ -6,9 +6,8 @@ mehranlatifi83/Telegram fork (12.10.5 release), MINUS its download/upload percen
 announcement (this project has its own) and MINUS its GitHub self-updater. Everything
 else in this file then runs on top of it.
 
-This revision is intentionally based on v10 in full. It preserves v10 patches and only
-adds the requested small-file 3-state setting, exact progress steps, fresh-install
-auto-download OFF defaults, and private-chat support for Go to first message.
+This revision preserves existing accessibility patches and includes direct link-copy announcements,
+separate download/upload completion beeps, Persian labels, and Telegram-theme dialog styling.
 
 Portable: works with GitHub Actions (patches-repo/scripts) or local kit (scripts/).
 When DrKLO/Telegram updates, re-run this script on a fresh clone.
@@ -200,6 +199,10 @@ def _patch_a11y_string_resources() -> None:
         "A11yPercent": "%1$d percent",
         "A11yDownloaded": "Downloaded",
         "A11yDownloadStateLabel": "Downloaded / not downloaded status: %s",
+        "A11yMediaTabCountsLabel": "Show counts next to Files / Links / Music / Voice: %s",
+        "A11yDownloadCompleteBeepLabel": "Beep when a download finishes: %s",
+        "A11yUploadCompleteBeepLabel": "Beep when an upload finishes: %s",
+        "A11yLinkCopied": "Link copied",
         "A11yAlbumReadingLabel": "Announce media album grouping: %s",
         "A11yAlbumReadingSummary": "Screen reader announces when a message belongs to an album and its position",
         "A11yAdminTagLabel": "Announce admin and group tags: %s",
@@ -278,6 +281,10 @@ def _patch_a11y_string_resources() -> None:
         "A11yBotNumber": "ربات %1$d", "A11yPercent": "%1$d درصد",
         "A11yDownloaded": "دانلود شد",
         "A11yDownloadStateLabel": "وضعیت دانلود‌شده / دانلود‌نشده: %s",
+        "A11yMediaTabCountsLabel": "نمایش تعداد کنار فایل‌ها / لینک‌ها / موسیقی / پیام‌های صوتی: %s",
+        "A11yDownloadCompleteBeepLabel": "بوق هنگام پایان دانلود: %s",
+        "A11yUploadCompleteBeepLabel": "بوق هنگام پایان بارگذاری: %s",
+        "A11yLinkCopied": "لینک کپی شد",
         "A11yAlbumReadingLabel": "اعلام گروه‌بندی آلبوم رسانه: %s",
         "A11yAlbumReadingSummary": "صفحه‌خوان اعلام می‌کند که پیام جزو یک آلبوم است و جایگاه آن را می‌گوید",
         "A11yAdminTagLabel": "اعلام تگ ادمین و گروه: %s",
@@ -825,6 +832,61 @@ def patch_forward_handler(t: str) -> str:
 
 
 def patch_forward_menu_extras() -> None:
+    # Make V2Ray/Xray proxy URIs real clickable spans in Telegram text, so the existing
+    # didLongPressLink callback can copy them even when Android's WEB_URLS Linkify ignores
+    # non-HTTP schemes.
+    mo = JAVA / "org/telegram/messenger/MessageObject.java"
+    if mo.exists():
+        mobj = mo.read_text(encoding="utf-8")
+        proxy_marker = "a11y-fork: V2Ray/Xray proxy URI spans v1"
+        if proxy_marker not in mobj:
+            helper_anchor = "    public static void addPhoneLinks(CharSequence messageText) {"
+            proxy_helper = r'''    // a11y-fork: V2Ray/Xray proxy URI spans v1
+    private static void a11yAddProxyUriLinks(CharSequence text) {
+        if (!(text instanceof Spannable) || text.length() == 0) return;
+        Spannable spannable = (Spannable) text;
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "(?i)(?<![A-Za-z0-9+.-])(?:vless|vmess|v2ray|xray|trojan|shadowsocksr|shadowsocks|ssr|ss|socks5h|socks5|socks4|socks|hysteria2|hysteria|hy2|tuic|wireguard|wg|naive[+]https|juicity|shadowtls|snell|ssh|mieru|anytls|brook)://[^\\s<>\"']+");
+        java.util.regex.Matcher matcher = pattern.matcher(text);
+        while (matcher.find()) {
+            int start = matcher.start();
+            int end = matcher.end();
+            while (end > start && ".,;)]}".indexOf(text.charAt(end - 1)) >= 0) end--;
+            if (end <= start) continue;
+            URLSpan[] existing = spannable.getSpans(start, end, URLSpan.class);
+            boolean overlaps = false;
+            if (existing != null) {
+                for (URLSpan span : existing) {
+                    if (spannable.getSpanStart(span) < end && spannable.getSpanEnd(span) > start) {
+                        overlaps = true;
+                        break;
+                    }
+                }
+            }
+            if (!overlaps) {
+                String uri = text.subSequence(start, end).toString();
+                spannable.setSpan(new URLSpanNoUnderline(uri), start, end, 0);
+            }
+        }
+    }
+
+'''
+            if helper_anchor in mobj:
+                mobj = mobj.replace(helper_anchor, proxy_helper + helper_anchor, 1)
+                linkify_anchor = "                AndroidUtilities.addLinksSafe((Spannable) messageText, Linkify.WEB_URLS, internalOnly, false);\n"
+                if linkify_anchor in mobj:
+                    mobj = mobj.replace(linkify_anchor, linkify_anchor + "                a11yAddProxyUriLinks(messageText); // a11y-fork: V2Ray/Xray proxy URI spans v1\n", 1)
+                    mo.write_text(mobj, encoding="utf-8")
+                    print("MessageObject V2Ray/Xray proxy URI spans OK")
+                else:
+                    print("WARN: MessageObject addLinksSafe anchor missing (proxy URI spans)")
+            else:
+                print("WARN: MessageObject addPhoneLinks anchor missing (proxy URI spans)")
+        else:
+            print("MessageObject V2Ray/Xray proxy URI spans already patched")
+    else:
+        print("WARN: MessageObject.java missing (V2Ray/Xray proxy URI spans)")
+
     ca = JAVA / "org/telegram/ui/ChatActivity.java"
     smh = JAVA / "org/telegram/messenger/SendMessagesHelper.java"
     if not ca.exists():
@@ -1760,7 +1822,7 @@ def patch_links_as_menu() -> None:
                 }
             }
             String raw = message.messageOwner.message;
-            return raw != null && raw.matches("(?s).*https?://[^\\\\s]+.*");
+            return raw != null && raw.matches("(?is).*(?:https?://|vless://|vmess://|v2ray://|xray://|trojan://|shadowsocks://|shadowsocksr://|ss://|ssr://|socks://|socks4://|socks5://|socks5h://|hysteria://|hysteria2://|hy2://|tuic://|wireguard://|wg://|naive[+]https://|juicity://|shadowtls://|snell://|ssh://|mieru://|anytls://|brook://)[^\\s]+.*");
         } catch (Throwable ignore) { return false; }
     }
 
@@ -1811,7 +1873,7 @@ def patch_links_as_menu() -> None:
                     }
                 }
             }
-            java.util.regex.Matcher m=java.util.regex.Pattern.compile("https?://[^\\\\s<>\\"]+").matcher(raw);
+            java.util.regex.Matcher m=java.util.regex.Pattern.compile("(?i)(?:https?://|vless://|vmess://|v2ray://|xray://|trojan://|shadowsocks://|shadowsocksr://|ss://|ssr://|socks://|socks4://|socks5://|socks5h://|hysteria://|hysteria2://|hy2://|tuic://|wireguard://|wg://|naive[+]https://|juicity://|shadowtls://|snell://|ssh://|mieru://|anytls://|brook://)[^\\s<>\\\"]+").matcher(raw);
             while(m.find()) {
                 String url=m.group();
                 while(url.endsWith(".")||url.endsWith(",")||url.endsWith(")")||url.endsWith("]")) url=url.substring(0,url.length()-1);
@@ -3466,16 +3528,14 @@ def patch_a11y_settings_dialog_stays_open() -> None:
             if (dialog.getWindow() != null) {
                 dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(background));
             }
-            int a11yTitleId = dialog.getContext().getResources().getIdentifier("alertTitle", "id", "android");
-            if (a11yTitleId != 0) {
-                android.widget.TextView title = dialog.findViewById(a11yTitleId);
-                if (title != null) title.setTextColor(text);
-            }
+            int titleId = dialog.getContext().getResources().getIdentifier("alertTitle", "id", "android");
+            android.widget.TextView title = titleId != 0 ? dialog.findViewById(titleId) : null;
+            if (title != null) title.setTextColor(text);
             android.widget.Button negative = dialog.getButton(android.content.DialogInterface.BUTTON_NEGATIVE);
             if (negative != null) negative.setTextColor(button);
             android.widget.Button positive = dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE);
             if (positive != null) positive.setTextColor(button);
-            android.widget.ListView list = dialog.getListView();
+            android.widget.ListView list = dialog.findViewById(android.R.id.select_dialog_listview);
             if (list != null) {
                 list.setBackgroundColor(background);
                 list.setCacheColorHint(background);
@@ -3531,8 +3591,11 @@ def patch_a11y_settings_dialog_stays_open() -> None:
                     .create();
             dialog.show();
             applyTelegramTheme(dialog);
+            // a11y-fork: apply Telegram theme colors again after the platform dialog attaches its list.
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> applyTelegramTheme(dialog));
             // the stock click handler dismisses the dialog; ours only refreshes the row
-            dialog.getListView().setOnItemClickListener((parent, view, which, id) -> handleSettingsClick(activity, which, refresh));
+            android.widget.ListView settingsList = dialog.findViewById(android.R.id.select_dialog_listview);
+            if (settingsList != null) settingsList.setOnItemClickListener((parent, view, which, id) -> handleSettingsClick(activity, which, refresh));
         } catch (Throwable ignore) {
         }
     }
@@ -5904,7 +5967,7 @@ def patch_dialogs_select_all() -> None:
 
 
 def patch_media_counts_download_beep_and_link_copy() -> None:
-    """Optional media-tab counts, link long-press copy (including proxy URIs), and download-complete beep.
+    """Optional media-tab counts, link long-press copy (including V2Ray/Xray proxy URIs), and download/upload-complete beeps.
 
     All new options are OFF by default and stored in Telegram's global main settings.
     """
@@ -5934,6 +5997,16 @@ def patch_media_counts_download_beep_and_link_copy() -> None:
         try { MessagesController.getGlobalMainSettings().edit().putBoolean(PREF_DOWNLOAD_COMPLETE_BEEP, value).apply(); }
         catch (Throwable ignore) { }
     }
+
+    public static final String PREF_UPLOAD_COMPLETE_BEEP = "a11y_upload_complete_beep";
+    public static boolean getUploadCompleteBeep() {
+        try { return MessagesController.getGlobalMainSettings().getBoolean(PREF_UPLOAD_COMPLETE_BEEP, false); }
+        catch (Throwable ignore) { return false; }
+    }
+    public static void setUploadCompleteBeep(boolean value) {
+        try { MessagesController.getGlobalMainSettings().edit().putBoolean(PREF_UPLOAD_COMPLETE_BEEP, value).apply(); }
+        catch (Throwable ignore) { }
+    }
 '''
             anchor = '    private static java.util.ArrayList<String> buildSettingsItems() {'
             if anchor not in cfg:
@@ -5944,23 +6017,38 @@ def patch_media_counts_download_beep_and_link_copy() -> None:
                 ret_idx = cfg.find('        return items;', list_start)
                 if ret_idx >= 0:
                     rows = ('        items.add(LocaleController.formatString(R.string.A11yMediaTabCountsLabel, onOff(getMediaTabCounts())));\n'
-                            '        items.add(LocaleController.formatString(R.string.A11yDownloadCompleteBeepLabel, onOff(getDownloadCompleteBeep())));\n')
+                            '        items.add(LocaleController.formatString(R.string.A11yDownloadCompleteBeepLabel, onOff(getDownloadCompleteBeep())));\n'
+                            '        items.add(LocaleController.formatString(R.string.A11yUploadCompleteBeepLabel, onOff(getUploadCompleteBeep())));\n')
                     cfg = cfg[:ret_idx] + rows + cfg[ret_idx:]
                 else:
                     print("WARN: A11yConfig settings list return missing (media counts/beep)")
-                # The new rows are appended after the existing Category filter row, indices 21 and 22.
+                # The three new rows are appended last; click indices are computed from the live list size.
                 click_start = cfg.find('private static void handleSettingsClick(')
                 default_idx = cfg.find('                default:\n', click_start)
                 if default_idx >= 0:
-                    cases = ('                case 21:\n'
-                             '                    setMediaTabCounts(!getMediaTabCounts());\n'
-                             '                    message = LocaleController.formatString(R.string.A11yMediaTabCountsLabel, onOff(getMediaTabCounts()));\n'
-                             '                    break;\n'
-                             '                case 22:\n'
-                             '                    setDownloadCompleteBeep(!getDownloadCompleteBeep());\n'
-                             '                    message = LocaleController.formatString(R.string.A11yDownloadCompleteBeepLabel, onOff(getDownloadCompleteBeep()));\n'
-                             '                    break;\n')
-                    cfg = cfg[:default_idx] + cases + cfg[default_idx:]
+                    dynamic_rows = (
+                        '                int a11ySettingsCount = buildSettingsItems().size();\n'
+                        '                if (which == a11ySettingsCount - 3) {\n'
+                        '                    setMediaTabCounts(!getMediaTabCounts());\n'
+                        '                    refresh.run();\n'
+                        '                    announce(activity, LocaleController.formatString(R.string.A11yMediaTabCountsLabel, onOff(getMediaTabCounts())));\n'
+                        '                    return;\n'
+                        '                }\n'
+                        '                if (which == a11ySettingsCount - 2) {\n'
+                        '                    setDownloadCompleteBeep(!getDownloadCompleteBeep());\n'
+                        '                    refresh.run();\n'
+                        '                    announce(activity, LocaleController.formatString(R.string.A11yDownloadCompleteBeepLabel, onOff(getDownloadCompleteBeep())));\n'
+                        '                    return;\n'
+                        '                }\n'
+                        '                if (which == a11ySettingsCount - 1) {\n'
+                        '                    setUploadCompleteBeep(!getUploadCompleteBeep());\n'
+                        '                    refresh.run();\n'
+                        '                    announce(activity, LocaleController.formatString(R.string.A11yUploadCompleteBeepLabel, onOff(getUploadCompleteBeep())));\n'
+                        '                    return;\n'
+                        '                }\n')
+                    switch_anchor = '            String message = null;\n            switch (which) {\n'
+                    if switch_anchor in cfg:
+                        cfg = cfg.replace(switch_anchor, '            String message = null;\n' + dynamic_rows + '            switch (which) {\n', 1)
                 else:
                     print("WARN: A11yConfig handleSettingsClick default anchor missing (media counts/beep)")
                 cfgp.write_text(cfg, encoding="utf-8")
@@ -5969,11 +6057,13 @@ def patch_media_counts_download_beep_and_link_copy() -> None:
     en = {
         "A11yMediaTabCountsLabel": "Show counts next to Files / Links / Music / Voice: %s",
         "A11yDownloadCompleteBeepLabel": "Beep when a download finishes: %s",
+        "A11yUploadCompleteBeepLabel": "Beep when an upload finishes: %s",
         "A11yLinkCopied": "Link copied",
     }
     fa = {
         "A11yMediaTabCountsLabel": "نمایش تعداد کنار فایل‌ها / لینک‌ها / موسیقی / پیام‌های صوتی: %s",
         "A11yDownloadCompleteBeepLabel": "بوق هنگام پایان دانلود: %s",
+        "A11yUploadCompleteBeepLabel": "بوق هنگام پایان بارگذاری: %s",
         "A11yLinkCopied": "لینک کپی شد",
     }
     for rel, values in (("values/strings.xml", en), ("values-fa/strings.xml", fa), ("values-fa-rIR/strings.xml", fa)):
@@ -6045,12 +6135,17 @@ def patch_media_counts_download_beep_and_link_copy() -> None:
     dc = JAVA / "org/telegram/messenger/DownloadController.java"
     if dc.exists():
         d = dc.read_text(encoding="utf-8")
-        marker = "a11y-fork: download complete beep v1"
-        if marker not in d:
-            anchor = '        } else if (id == NotificationCenter.fileLoaded || id == NotificationCenter.httpFileDidLoad) {\n'
-            beep = '''        } else if (id == NotificationCenter.fileLoaded || id == NotificationCenter.httpFileDidLoad) {
-            // a11y-fork: download complete beep v1 -- independent of the focused message
-            if (A11yConfig.getDownloadCompleteBeep()) {
+        # Register upload-complete events without changing Telegram's existing upload-progress path.
+        observer_anchor = '            getNotificationCenter().addObserver(DownloadController.this, NotificationCenter.fileUploadProgressChanged);\n'
+        if "getNotificationCenter().addObserver(DownloadController.this, NotificationCenter.fileUploaded);" not in d and observer_anchor in d:
+            d = d.replace(observer_anchor, observer_anchor + '            getNotificationCenter().addObserver(DownloadController.this, NotificationCenter.fileUploaded);\n', 1)
+        upload_marker = "a11y-fork: upload completion beep v1"
+        if upload_marker not in d:
+            method_anchor = '    public void didReceivedNotification(int id, int account, Object... args) {\n'
+            upload_block = '''    public void didReceivedNotification(int id, int account, Object... args) {
+        // a11y-fork: upload completion beep v1 -- OFF by default; independent of accessibility focus.
+        if (id == NotificationCenter.fileUploaded) {
+            if (A11yConfig.getUploadCompleteBeep()) {
                 try {
                     new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                         try {
@@ -6061,17 +6156,48 @@ def patch_media_counts_download_beep_and_link_copy() -> None:
                     });
                 } catch (Throwable ignored) { }
             }
+            return;
+        }
 '''
-            if anchor not in d:
-                print("WARN: DownloadController file-loaded anchor missing (download beep)")
+            if method_anchor in d:
+                d = d.replace(method_anchor, upload_block, 1)
             else:
-                d = d.replace(anchor, beep, 1)
-                dc.write_text(d, encoding="utf-8")
-                print("DownloadController optional completion beep OK")
-        else:
-            print("DownloadController completion beep already patched")
+                print("WARN: DownloadController notification handler missing (upload beep)")
+        download_marker = "a11y-fork: download complete beep v2"
+        if download_marker not in d:
+            old_marker = "a11y-fork: download complete beep v1"
+            if old_marker not in d:
+                anchor = '        } else if (id == NotificationCenter.fileLoaded || id == NotificationCenter.httpFileDidLoad) {\n'
+                beep = '''        } else if (id == NotificationCenter.fileLoaded || id == NotificationCenter.httpFileDidLoad) {
+            // a11y-fork: download complete beep v2 -- OFF unless its dedicated setting is enabled.
+            if (A11yConfig.getDownloadCompleteBeep()) {
+                try {
+                    String a11yCompletedFile = (args != null && args.length > 0 && args[0] instanceof String) ? (String) args[0] : null;
+                    boolean a11yTrackedDownload = a11yCompletedFile != null
+                            && (loadingFileMessagesObservers.containsKey(a11yCompletedFile)
+                            || loadingFileObservers.containsKey(a11yCompletedFile));
+                    if (a11yTrackedDownload) {
+                        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                            try {
+                                final android.media.ToneGenerator tone = new android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 65);
+                                tone.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 130);
+                                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(tone::release, 220);
+                            } catch (Throwable ignored) { }
+                        });
+                    }
+                } catch (Throwable ignored) { }
+            }
+'''
+                if anchor in d:
+                    d = d.replace(anchor, beep, 1)
+                else:
+                    print("WARN: DownloadController file-loaded anchor missing (download beep)")
+            else:
+                print("WARN: DownloadController already has legacy download beep v1; not adding another beep block")
+        dc.write_text(d, encoding="utf-8")
+        print("DownloadController download/upload completion beep hooks OK")
     else:
-        print("WARN: DownloadController.java missing (download beep)")
+        print("WARN: DownloadController.java missing (download/upload beep)")
 
     ca = JAVA / "org/telegram/ui/ChatActivity.java"
     if ca.exists():
@@ -6081,15 +6207,45 @@ def patch_media_counts_download_beep_and_link_copy() -> None:
         longpress_anchor = '    public void didLongPressLink(ChatMessageCell cell, MessageObject messageObject, CharacterStyle span, String str) {\n'
         longpress_marker = "a11y-fork: long-press copies URL directly v1"
         if longpress_marker not in c and longpress_anchor in c:
-            direct_copy = '    public void didLongPressLink(ChatMessageCell cell, MessageObject messageObject, CharacterStyle span, String str) {\n        // a11y-fork: long-press copies URL directly v1\n        if (str != null && !str.startsWith("video?") && !str.startsWith("#") && !str.startsWith("$") && !str.startsWith("@")) {\n            String a11yCopyValue = str.startsWith("mailto:") ? str.substring("mailto:".length()) : str;\n            AndroidUtilities.addToClipboard(a11yCopyValue);\n            try { BulletinFactory.of(ChatActivity.this).createCopyLinkBulletin().show(); }\n            catch (Throwable ignored) { }\n            return;\n        }\n'
+            direct_copy = '    public void didLongPressLink(ChatMessageCell cell, MessageObject messageObject, CharacterStyle span, String str) {\n        // a11y-fork: long-press copies URL directly v1\n        if (str != null && !str.startsWith("video?") && !str.startsWith("#") && !str.startsWith("$") && !str.startsWith("@")) {\n            String a11yCopyValue = str.startsWith("mailto:") ? str.substring("mailto:".length()) : str;\n            AndroidUtilities.addToClipboard(a11yCopyValue);\n            try { BulletinFactory.of(ChatActivity.this).createCopyLinkBulletin().show(); }\n            catch (Throwable ignored) { }\n            try { ChatActivity.this.getWindow().getDecorView().announceForAccessibility(LocaleController.getString(R.string.A11yLinkCopied)); }\n            catch (Throwable ignored) { }\n            return;\n        }\n'
             c = c.replace(longpress_anchor, direct_copy, 1)
         if marker not in c and "a11yShowMessageLinks(MessageObject message)" in c:
             old_regex = 'java.util.regex.Pattern.compile("https?://[^\\\\s<>\\\"]+")'
-            new_regex = 'java.util.regex.Pattern.compile("(?i)(?:https?://|vless://|vmess://|ss://|trojan://|socks5://)[^\\\\s<>\\\"]+")'
+            new_regex = 'java.util.regex.Pattern.compile("(?i)(?:https?://|vless://|vmess://|v2ray://|xray://|trojan://|shadowsocks://|shadowsocksr://|ss://|ssr://|socks://|socks4://|socks5://|socks5h://|hysteria://|hysteria2://|hy2://|tuic://|wireguard://|wg://|naive\\+https://|juicity://|shadowtls://|snell://|ssh://|mieru://|anytls://|brook://)[^\\s<>\\\"]+")'
             if old_regex in c:
                 c = c.replace(old_regex, new_regex, 1)
-            ca.write_text(c, encoding="utf-8")
-            print("ChatActivity Links regex updated OK")
+            old_dialog = '''            new AlertDialog.Builder(getParentActivity()).setTitle(LocaleController.getString(R.string.A11yLinks)).setItems(a11yShown,(dialog,which)->{'''
+            new_dialog = '''            final AlertDialog linksDialog = new AlertDialog.Builder(getParentActivity()).setTitle(LocaleController.getString(R.string.A11yLinks)).setItems(a11yShown,(dialog,which)->{'''
+            if old_dialog in c:
+                c = c.replace(old_dialog, new_dialog, 1)
+                old_end = '''            }).setNegativeButton(LocaleController.getString(R.string.A11yCancel),null).show();'''
+                new_end = '''            }).setNegativeButton(LocaleController.getString(R.string.A11yCancel),null).create();
+            linksDialog.setOnShowListener(ignored -> {
+                android.widget.ListView list = linksDialog.findViewById(android.R.id.select_dialog_listview);
+                if (list != null) list.setOnItemLongClickListener((parent, view, position, id) -> {
+                    if (position >= 0 && position < values.length) {
+                        String copyValue = values[position];
+                        AndroidUtilities.addToClipboard(copyValue);
+                        try { BulletinFactory.of(ChatActivity.this).createCopyLinkBulletin().show(); }
+                        catch (Throwable ignored2) { }
+                        try { ChatActivity.this.getWindow().getDecorView().announceForAccessibility(LocaleController.getString(R.string.A11yLinkCopied)); }
+                        catch (Throwable ignored2) { }
+                        linksDialog.dismiss();
+                        return true;
+                    }
+                    return false;
+                });
+            });
+            linksDialog.show(); // a11y-fork: long-press copy from Links menu v1'''
+                if old_end in c:
+                    c = c.replace(old_end, new_end, 1)
+                    c = c.replace('            final AlertDialog linksDialog = new AlertDialog.Builder', '            // a11y-fork: long-press copy from Links menu v1\n            final AlertDialog linksDialog = new AlertDialog.Builder', 1)
+                    ca.write_text(c, encoding="utf-8")
+                    print("ChatActivity Links menu long-press copy OK")
+                else:
+                    print("WARN: Links menu dialog end anchor missing (long-press copy)")
+            else:
+                print("WARN: Links menu dialog anchor missing (long-press copy)")
         elif marker in c:
             print("ChatActivity Links menu long-press copy already patched")
     else:
