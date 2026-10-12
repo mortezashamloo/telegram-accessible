@@ -3466,8 +3466,11 @@ def patch_a11y_settings_dialog_stays_open() -> None:
             if (dialog.getWindow() != null) {
                 dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(background));
             }
-            android.widget.TextView title = dialog.findViewById(android.R.id.alertTitle);
-            if (title != null) title.setTextColor(text);
+            int a11yTitleId = dialog.getContext().getResources().getIdentifier("alertTitle", "id", "android");
+            if (a11yTitleId != 0) {
+                android.widget.TextView title = dialog.findViewById(a11yTitleId);
+                if (title != null) title.setTextColor(text);
+            }
             android.widget.Button negative = dialog.getButton(android.content.DialogInterface.BUTTON_NEGATIVE);
             if (negative != null) negative.setTextColor(button);
             android.widget.Button positive = dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE);
@@ -6085,36 +6088,8 @@ def patch_media_counts_download_beep_and_link_copy() -> None:
             new_regex = 'java.util.regex.Pattern.compile("(?i)(?:https?://|vless://|vmess://|ss://|trojan://|socks5://)[^\\\\s<>\\\"]+")'
             if old_regex in c:
                 c = c.replace(old_regex, new_regex, 1)
-            old_dialog = '''            new AlertDialog.Builder(getParentActivity()).setTitle(LocaleController.getString(R.string.A11yLinks)).setItems(a11yShown,(dialog,which)->{'''
-            new_dialog = '''            final AlertDialog linksDialog = new AlertDialog.Builder(getParentActivity()).setTitle(LocaleController.getString(R.string.A11yLinks)).setItems(a11yShown,(dialog,which)->{'''
-            if old_dialog in c:
-                c = c.replace(old_dialog, new_dialog, 1)
-                old_end = '''            }).setNegativeButton(LocaleController.getString(R.string.A11yCancel),null).show();'''
-                new_end = '''            }).setNegativeButton(LocaleController.getString(R.string.A11yCancel),null).create();
-            linksDialog.setOnShowListener(ignored -> {
-                android.widget.ListView list = linksDialog.getListView();
-                if (list != null) list.setOnItemLongClickListener((parent, view, position, id) -> {
-                    if (position >= 0 && position < values.length) {
-                        String copyValue = values[position];
-                        AndroidUtilities.addToClipboard(copyValue);
-                        try { BulletinFactory.of(ChatActivity.this).createCopyLinkBulletin().show(); }
-                        catch (Throwable ignored2) { }
-                        linksDialog.dismiss();
-                        return true;
-                    }
-                    return false;
-                });
-            });
-            linksDialog.show(); // a11y-fork: long-press copy from Links menu v1'''
-                if old_end in c:
-                    c = c.replace(old_end, new_end, 1)
-                    c = c.replace('            final AlertDialog linksDialog = new AlertDialog.Builder', '            // a11y-fork: long-press copy from Links menu v1\n            final AlertDialog linksDialog = new AlertDialog.Builder', 1)
-                    ca.write_text(c, encoding="utf-8")
-                    print("ChatActivity Links menu long-press copy OK")
-                else:
-                    print("WARN: Links menu dialog end anchor missing (long-press copy)")
-            else:
-                print("WARN: Links menu dialog anchor missing (long-press copy)")
+            ca.write_text(c, encoding="utf-8")
+            print("ChatActivity Links regex updated OK")
         elif marker in c:
             print("ChatActivity Links menu long-press copy already patched")
     else:
