@@ -5450,6 +5450,27 @@ def patch_old_menu_extras() -> None:
     d = t.index(bt_end, c)
     theme_block = t[a:b]
     bots_block = t[c:d]
+    # keep only the declaration and the balanced `if (launchActivity != null ...) { ... }` block: upstream may wrap it
+    # in an else { } of its own (a wallet check), whose closing brace must not be copied along
+    _ip = bots_block.find("if (launchActivity != null")
+    if _ip < 0:
+        print("WARN: old-style menu extras: bots if-block not found")
+        return
+    _open = bots_block.index("{", _ip)
+    _depth = 0
+    _end = -1
+    for _k in range(_open, len(bots_block)):
+        if bots_block[_k] == "{":
+            _depth += 1
+        elif bots_block[_k] == "}":
+            _depth -= 1
+            if _depth == 0:
+                _end = _k + 1
+                break
+    if _end < 0:
+        print("WARN: old-style menu extras: bots if-block is not balanced")
+        return
+    bots_block = bots_block[:_end] + "\n"
     if "io.add(" not in theme_block or "addBot" not in bots_block:
         print("WARN: old-style menu extras: extracted blocks look wrong")
         return
