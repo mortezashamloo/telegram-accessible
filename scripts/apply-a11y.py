@@ -6670,6 +6670,60 @@ def patch_round4_menu_back_focus() -> None:
     print("ChatActivity menu back focus OK")
 
 
+def patch_round4_longpress_cancel_touch() -> None:
+    """Long press (double-tap-and-hold) under TalkBack: the finger is still 'down' when the Message options menu
+    opens, so the chat list never receives the end of that touch and TalkBack's swipe navigation stays stuck until
+    a two-finger scroll resets it (opening the same menu from TalkBack's actions list has no such problem).
+    Right after the menu has opened, the unfinished touch is cancelled once, the way Telegram itself cancels it
+    in its own list code."""
+    p = JAVA / "org/telegram/ui/ChatActivity.java"
+    if not p.exists():
+        print("WARN: ChatActivity missing (long-press touch cancel)")
+        return
+    t = p.read_text(encoding="utf-8")
+    if "a11y-fork: long-press touch cancel" in t:
+        print("ChatActivity long-press touch cancel already patched")
+        return
+    old = ("            if (a11yOn2) {\n"
+           "                createMenu(cell, true, false, x, y, true);\n"
+           "            } else {\n")
+    if t.count(old) != 1:
+        print("WARN: ChatActivity didLongPress a11y branch found %d times (long-press touch cancel)" % t.count(old))
+        return
+    new = ("            if (a11yOn2) {\n"
+           "                createMenu(cell, true, false, x, y, true);\n"
+           "                a11yCancelTouchAfterLongPress(); // a11y-fork: long-press touch cancel\n"
+           "            } else {\n")
+    t = t.replace(old, new, 1)
+    anchor = "    private boolean a11yMenuOptionChosen;\n"
+    if t.count(anchor) != 1:
+        print("WARN: ChatActivity a11yMenuOptionChosen anchor not found (long-press touch cancel)")
+        return
+    helper = r'''    private void a11yCancelTouchAfterLongPress() {
+        try {
+            if (chatListView == null) {
+                return;
+            }
+            chatListView.post(() -> {
+                try {
+                    final MotionEvent a11yCancel = MotionEvent.obtain(0, 0, MotionEvent.ACTION_CANCEL, 0, 0, 0);
+                    chatListView.dispatchTouchEvent(a11yCancel);
+                    a11yCancel.recycle();
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
+            });
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+'''
+    t = t.replace(anchor, helper + anchor, 1)
+    p.write_text(t, encoding="utf-8")
+    print("ChatActivity long-press touch cancel OK")
+
+
 def main() -> int:
     if not Path("telegram").is_dir():
         print("ERROR: telegram/ not found (clone DrKLO/Telegram as ./telegram)", file=sys.stderr)
@@ -6756,6 +6810,7 @@ def main() -> int:
     patch_round3_download_beep()
     patch_round3_category_folders()
     patch_round4_menu_back_focus()
+    patch_round4_longpress_cancel_touch()
     # MUST stay last: it rewrites English text injected by the patches above
     # (Selected / Bot Buttons / Forwarded to Saved / Accessible settings ...).
     patch_a11y_localization()
