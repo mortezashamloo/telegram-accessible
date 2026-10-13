@@ -6605,12 +6605,17 @@ def patch_round4_menu_back_focus() -> None:
 
     private void a11yRestoreFocusAfterMenu(final MessageObject message) {
         try {
-            if (message == null || a11yMenuOptionChosen || !AndroidUtilities.isAccessibilityScreenReaderEnabled()) {
+            if (message == null || !AndroidUtilities.isAccessibilityScreenReaderEnabled()) {
                 return;
             }
             AndroidUtilities.runOnUIThread(() -> {
                 try {
                     if (scrimPopupWindow != null || chatListView == null) {
+                        return;
+                    }
+                    // an option that opened another screen or a dialog, or put the cursor in the message field, keeps its own focus
+                    if (getParentLayout() == null || getParentLayout().getLastFragment() != this || visibleDialog != null
+                            || (chatActivityEnterView != null && chatActivityEnterView.getEditField() != null && chatActivityEnterView.getEditField().isFocused())) {
                         return;
                     }
                     for (int i = 0; i < chatListView.getChildCount(); i++) {
