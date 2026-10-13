@@ -119,7 +119,7 @@ def _set_string(path: Path, name: str, value: str) -> None:
     if f'name="{name}"' in t:
         t2, _ = re.subn(
             rf'(<string\s+name="{name}">)[^<]*(</string>)',
-            rf"\1{value}\2",
+            lambda m: m.group(1) + value + m.group(2),
             t,
             count=1,
         )
@@ -6334,7 +6334,10 @@ def patch_round3_link_long_press_copy() -> None:
         print("WARN: ChatActivity/AlertDialog missing (link copy)")
         return
     # 1) AlertDialog: a way to reach a row (to give it a long-click)
-    _r3_replace_once(
+    if "a11yGetItemView" in adlg.read_text(encoding="utf-8"):
+        print("AlertDialog a11yGetItemView already patched")
+    else:
+      _r3_replace_once(
         adlg,
         "    public int getItemsCount() {\n        return itemViews.size();\n    }\n",
         "    public int getItemsCount() {\n        return itemViews.size();\n    }\n\n"
@@ -6468,6 +6471,9 @@ def patch_round3_link_long_press_copy() -> None:
 def patch_round3_download_beep() -> None:
     """Beep when a download the user started finishes (FileLoader; wherever the focus is). Setting, default OFF."""
     p = JAVA / "org/telegram/messenger/FileLoader.java"
+    if p.exists() and "playDownloadDoneBeep" in p.read_text(encoding="utf-8"):
+        print("FileLoader download-finished beep already patched")
+        return
     _r3_replace_once(
         p,
         "                    if (document != null && messageObject.putInDownloadsStore) {\n"
