@@ -6695,9 +6695,9 @@ def patch_round4_longpress_cancel_touch() -> None:
            "                a11yCancelTouchAfterLongPress(); // a11y-fork: long-press touch cancel\n"
            "            } else {\n")
     t = t.replace(old, new, 1)
-    anchor = "    private boolean a11yMenuOptionChosen;\n"
+    anchor = "    public void closeMenu() {\n        closeMenu(true);\n    }\n"
     if t.count(anchor) != 1:
-        print("WARN: ChatActivity a11yMenuOptionChosen anchor not found (long-press touch cancel)")
+        print("WARN: ChatActivity closeMenu anchor not found (long-press touch cancel)")
         return
     helper = r'''    private void a11yCancelTouchAfterLongPress() {
         try {
@@ -6809,7 +6809,7 @@ def main() -> int:
     patch_round3_link_long_press_copy()
     patch_round3_download_beep()
     patch_round3_category_folders()
-    patch_round4_menu_back_focus()
+    # patch_round4_menu_back_focus() is switched off: it did not fix the stuck focus and TalkBack read the menu items by itself after a long press
     patch_round4_longpress_cancel_touch()
     # MUST stay last: it rewrites English text injected by the patches above
     # (Selected / Bot Buttons / Forwarded to Saved / Accessible settings ...).
