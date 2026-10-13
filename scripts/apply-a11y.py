@@ -6724,6 +6724,30 @@ def patch_round4_longpress_cancel_touch() -> None:
     print("ChatActivity long-press touch cancel OK")
 
 
+def patch_round4_defer_accessibility_long_click() -> None:
+    """TalkBack's own long-click (the one with TalkBack's long-press sound) used to open the Message options
+    menu from inside the accessibility action itself. The menu now opens right after the action has returned,
+    so TalkBack has finished handling the action before the window changes."""
+    p = JAVA / "org/telegram/ui/Cells/ChatMessageCell.java"
+    if not p.exists():
+        print("WARN: ChatMessageCell missing (deferred long-click)")
+        return
+    t = p.read_text(encoding="utf-8")
+    old = "delegate.didLongPress(ChatMessageCell.this, a11yX, a11yY);"
+    n = t.count(old)
+    if n == 0:
+        if "a11y-fork: deferred long-click" in t:
+            print("ChatMessageCell deferred long-click already patched")
+        else:
+            print("WARN: ChatMessageCell accessibility long-click anchors not found (deferred long-click)")
+        return
+    new = ("{ final float a11yFx = a11yX, a11yFy = a11yY; // a11y-fork: deferred long-click\n"
+           "                    ChatMessageCell.this.post(() -> { if (delegate != null && currentMessageObject != null) { delegate.didLongPress(ChatMessageCell.this, a11yFx, a11yFy); } }); }")
+    t = t.replace(old, new)
+    p.write_text(t, encoding="utf-8")
+    print("ChatMessageCell deferred accessibility long-click OK (%d places)" % n)
+
+
 def main() -> int:
     if not Path("telegram").is_dir():
         print("ERROR: telegram/ not found (clone DrKLO/Telegram as ./telegram)", file=sys.stderr)
@@ -6811,6 +6835,7 @@ def main() -> int:
     patch_round3_category_folders()
     # patch_round4_menu_back_focus() is switched off: it did not fix the stuck focus and TalkBack read the menu items by itself after a long press
     patch_round4_longpress_cancel_touch()
+    patch_round4_defer_accessibility_long_click()
     # MUST stay last: it rewrites English text injected by the patches above
     # (Selected / Bot Buttons / Forwarded to Saved / Accessible settings ...).
     patch_a11y_localization()
