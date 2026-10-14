@@ -3126,18 +3126,23 @@ def patch_reply_longpress_opens_options() -> None:
 
 
 def patch_stuck_focus_after_longpress() -> None:
-    """After a REAL (touch) long press opens Message options, the popup window can swallow the
-    finger-up, so RecyclerListView keeps stale touch state (currentChildView still pressed,
-    longPressCalled still true). TalkBack focus then sticks on that message after Back until a
-    scroll (whose onScrollStateChanged clears exactly that state) happens. Opening Message options
-    from TalkBack's Actions menu sends no touch, so it never shows the bug. Fix: clear that state
-    when the message menu closes."""
+    """After a REAL (touch) long press opens Message options, the popup window swallows the
+    finger-up, leaving stale touch state in RecyclerListView and ChatMessageCell AND leaving
+    TalkBack's AccessibilityNodeProvider cache stuck on a stale virtual node after Back.
+    Fix: completely clear touch/pressed state on both RecyclerListView and all visible cells,
+    refresh the accessibility subtree, and cleanly restore focus to the message cell when
+    dismissed with Back so swiping right/left immediately moves to the next/previous message."""
     rl = JAVA / "org/telegram/ui/Components/RecyclerListView.java"
-    marker = "a11y-fork: reset touch state after menu v1"
+    marker = "a11y-fork: reset touch state after menu v2"
     if not rl.exists():
         print("WARN: RecyclerListView.java missing (stuck focus)")
         return
     t = rl.read_text(encoding="utf-8")
+    if "a11y-fork: reset touch state after menu v1" in t:
+        v1_start = t.find("    // a11y-fork: reset touch state after menu v1")
+        v1_end = t.find("    public void cancelClickRunnables(boolean uncheck) {", v1_start)
+        if v1_start != -1 and v1_end != -1:
+            t = t[:v1_start] + t[v1_end:]
     if marker not in t:
         anchor = "    public void cancelClickRunnables(boolean uncheck) {\n"
         if t.count(anchor) != 1:
@@ -3147,22 +3152,31 @@ def patch_stuck_focus_after_longpress() -> None:
             "    // " + marker + "\n"
             "    public void a11yResetTouchState() {\n"
             "        try {\n"
+            "            cancelClickRunnables(true);\n"
             "            if (selectChildRunnable != null) {\n"
             "                AndroidUtilities.cancelRunOnUIThread(selectChildRunnable);\n"
             "                selectChildRunnable = null;\n"
             "            }\n"
+            "            long now = android.os.SystemClock.uptimeMillis();\n"
+            "            MotionEvent a11yCancel = MotionEvent.obtain(now, now, MotionEvent.ACTION_CANCEL, 0f, 0f, 0);\n"
             "            if (currentChildView != null) {\n"
             "                View a11yChild = currentChildView;\n"
-            "                MotionEvent a11yCancel = MotionEvent.obtain(0, 0, MotionEvent.ACTION_CANCEL, 0, 0, 0);\n"
             "                try {\n"
             "                    a11yChild.onTouchEvent(a11yCancel);\n"
             "                } catch (Throwable ignore) {\n"
             "                }\n"
-            "                a11yCancel.recycle();\n"
             "                onChildPressed(a11yChild, 0, 0, false);\n"
             "                currentChildView = null;\n"
             "                removeSelection(a11yChild, null);\n"
             "            }\n"
+            "            for (int i = 0; i < getChildCount(); i++) {\n"
+            "                View ch = getChildAt(i);\n"
+            "                if (ch != null) {\n"
+            "                    try { ch.onTouchEvent(a11yCancel); } catch (Throwable ignore) {}\n"
+            "                    ch.setPressed(false);\n"
+            "                }\n"
+            "            }\n"
+            "            a11yCancel.recycle();\n"
             "            interceptedByChild = false;\n"
             "            if (longPressCalled) {\n"
             "                longPressCalled = false;\n"
@@ -3171,6 +3185,8 @@ def patch_stuck_focus_after_longpress() -> None:
             "                }\n"
             "            }\n"
             "            selectorRect.setEmpty();\n"
+            "            setPressed(false);\n"
+            "            requestDisallowInterceptTouchEvent(false);\n"
             "        } catch (Throwable e) {\n"
             "            FileLog.e(e);\n"
             "        }\n"
@@ -3178,9 +3194,9 @@ def patch_stuck_focus_after_longpress() -> None:
         )
         t = t.replace(anchor, method + anchor, 1)
         rl.write_text(t, encoding="utf-8")
-        print("RecyclerListView a11yResetTouchState OK")
+        print("RecyclerListView a11yResetTouchState v2 OK")
     else:
-        print("RecyclerListView a11yResetTouchState already patched")
+        print("RecyclerListView a11yResetTouchState v2 already patched")
 
     ca = JAVA / "org/telegram/ui/ChatActivity.java"
     if not ca.exists():
@@ -3188,27 +3204,103 @@ def patch_stuck_focus_after_longpress() -> None:
         return
     c = ca.read_text(encoding="utf-8")
     if marker in c:
-        print("ChatActivity stuck-focus reset already patched")
+        print("ChatActivity stuck-focus reset v2 already patched")
         return
+
+    head = ("            scrimPopupWindow = new ActionBarPopupWindow(scrimPopupContainerLayout, LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT) {\n"
+            "                @Override\n"
+            "                public void dismiss() {\n"
+            "                    super.dismiss();\n"
+            "                    if (scrimPopupWindow != this) {\n"
+            "                        return;\n"
+            "                    }\n")
+    if c.count(head) == 1:
+        c = c.replace(
+            head,
+            "            final MessageObject a11yFocusTargetMsg = selectedObject; // " + marker + "\n"
+            "            a11yMenuOptionPicked = false;\n"
+            "            if (chatListView != null) { chatListView.a11yResetTouchState(); }\n"
+            + head,
+            1
+        )
+
+    click_anchor = ("                    cell.setOnClickListener(v1 -> {\n"
+                    "                        if (selectedObject == null || i >= options.size()) {\n"
+                    "                            return;\n"
+                    "                        }\n"
+                    "                        processSelectedOption(options.get(i));\n")
+    if c.count(click_anchor) == 1:
+        c = c.replace(
+            click_anchor,
+            click_anchor.replace(
+                "                        processSelectedOption(options.get(i));\n",
+                "                        a11yMenuOptionPicked = true;\n                        processSelectedOption(options.get(i));\n"
+            ),
+            1
+        )
+
+    close_anchor = "    public void closeMenu() {\n        closeMenu(true);\n    }\n"
+    if c.count(close_anchor) == 1 and "private boolean a11yMenuOptionPicked;" not in c:
+        helper_methods = (
+            "    private boolean a11yMenuOptionPicked;\n\n"
+            "    private void a11yRestoreTalkBackAfterMenuDismiss(final MessageObject targetMsg) {\n"
+            "        try {\n"
+            "            if (!org.telegram.messenger.AndroidUtilities.isAccessibilityScreenReaderEnabled() || chatListView == null) {\n"
+            "                return;\n"
+            "            }\n"
+            "            chatListView.a11yResetTouchState();\n"
+            "            for (int i = 0; i < chatListView.getChildCount(); i++) {\n"
+            "                View ch = chatListView.getChildAt(i);\n"
+            "                if (ch instanceof ChatMessageCell) {\n"
+            "                    ((ChatMessageCell) ch).resetPressedLink(-1);\n"
+            "                    ch.invalidate();\n"
+            "                }\n"
+            "            }\n"
+            "            if (a11yMenuOptionPicked || targetMsg == null) {\n"
+            "                return;\n"
+            "            }\n"
+            "            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {\n"
+            "                try {\n"
+            "                    if (scrimPopupWindow != null || chatListView == null || a11yMenuOptionPicked || visibleDialog != null) {\n"
+            "                        return;\n"
+            "                    }\n"
+            "                    chatListView.a11yResetTouchState();\n"
+            "                    chatListView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);\n"
+            "                    for (int i = 0; i < chatListView.getChildCount(); i++) {\n"
+            "                        final View cellView = chatListView.getChildAt(i);\n"
+            "                        if (cellView instanceof ChatMessageCell) {\n"
+            "                            final MessageObject mo = ((ChatMessageCell) cellView).getMessageObject();\n"
+            "                            if (mo != null && mo.getId() == targetMsg.getId() && mo.getDialogId() == targetMsg.getDialogId()) {\n"
+            "                                chatListView.scrollBy(0, 0);\n"
+            "                                chatListView.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);\n"
+            "                                cellView.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);\n"
+            "                                cellView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null);\n"
+            "                                return;\n"
+            "                            }\n"
+            "                        }\n"
+            "                    }\n"
+            "                } catch (Throwable ignore) {\n"
+            "                }\n"
+            "            }, 180);\n"
+            "        } catch (Throwable ignore) {\n"
+            "        }\n"
+            "    }\n\n"
+        )
+        c = c.replace(close_anchor, helper_methods + close_anchor, 1)
+
     anchor = ("                    scrimPopupWindowItems = null;\n"
               "                    chatLayoutManager.setCanScrollVertically(true);\n")
     n = c.count(anchor)
     if n < 1:
         print("WARN: ChatActivity message-menu dismiss anchor not found (stuck focus)")
         return
-    add = (
+    first_add = (
         "                    // " + marker + "\n"
-        "                    try {\n"
-        "                        if (org.telegram.messenger.AndroidUtilities.isAccessibilityScreenReaderEnabled() && chatListView != null) {\n"
-        "                            chatListView.a11yResetTouchState();\n"
-        "                            chatListView.post(() -> chatListView.a11yResetTouchState());\n"
-        "                        }\n"
-        "                    } catch (Throwable ignore) {\n"
-        "                    }\n"
+        "                    a11yRestoreTalkBackAfterMenuDismiss(a11yFocusTargetMsg);\n"
     )
-    c = c.replace(anchor, anchor + add)
+    c = c.replace(anchor, anchor + first_add, 1)
     ca.write_text(c, encoding="utf-8")
-    print("ChatActivity stuck-focus reset OK (%d menu dismiss sites)" % n)
+    print("ChatActivity stuck-focus reset v2 OK")
 
 
 def patch_longclickable_flag() -> None:
@@ -6701,16 +6793,15 @@ def patch_mehran_transfer_announcer_quiet() -> None:
 
 
 def patch_longpress_same_menu_path() -> None:
-    """A long press under TalkBack opened the Message options with other arguments than the 'Message options'
-    action of TalkBack's actions list (which has never had the stuck-focus problem). An ordinary single message now
-    uses exactly the arguments of that action path; albums and service messages keep what they had."""
+    """Ensure a long press under TalkBack immediately resets any pending touch state on chatListView
+    before opening Message options, and uses the exact clean menu creation path."""
     p = JAVA / "org/telegram/ui/ChatActivity.java"
     if not p.exists():
         print("WARN: ChatActivity missing (long press same menu path)")
         return
     t = p.read_text(encoding="utf-8")
-    if "a11y-fork: long press same menu path" in t:
-        print("ChatActivity long press same menu path already patched")
+    if "a11y-fork: long press same menu path v2" in t:
+        print("ChatActivity long press same menu path v2 already patched")
         return
     old = ("            if (a11yOn2) {\n"
            "                createMenu(cell, true, false, x, y, true);\n"
@@ -6718,15 +6809,23 @@ def patch_longpress_same_menu_path() -> None:
     if t.count(old) != 1:
         print("WARN: ChatActivity long-press menu call found %d times (long press same menu path)" % t.count(old))
         return
-    new = ("            if (a11yOn2) { // a11y-fork: long press same menu path\n"
+    new = ("            if (a11yOn2) { // a11y-fork: long press same menu path v2\n"
+           "                try {\n"
+           "                    if (chatListView != null) {\n"
+           "                        chatListView.a11yResetTouchState();\n"
+           "                    }\n"
+           "                    if (cell != null) {\n"
+           "                        cell.resetPressedLink(-1);\n"
+           "                        cell.setPressed(false);\n"
+           "                    }\n"
+           "                } catch (Throwable ignore) {}\n"
            "                final MessageObject a11yMo = cell != null ? cell.getMessageObject() : null;\n"
            "                final boolean a11yGrouped = cell != null && cell.getCurrentMessagesGroup() != null;\n"
            "                final boolean a11yPlain = a11yMo != null && a11yMo.messageOwner != null && a11yMo.messageOwner.action == null && !a11yGrouped;\n"
-           "                // same arguments as didPressOther (the Message options action of TalkBack's actions list)\n"
            "                createMenu(cell, true, false, x, y, a11yGrouped || !a11yPlain, !a11yPlain);\n"
            "            } else {\n")
     p.write_text(t.replace(old, new, 1), encoding="utf-8")
-    print("ChatActivity long press uses the same menu path as the Message options action OK")
+    print("ChatActivity long press uses the same menu path v2 OK")
 
 
 def main() -> int:
