@@ -3125,6 +3125,92 @@ def patch_reply_longpress_opens_options() -> None:
         "ChatActivity reply long-press opens Message options")
 
 
+def patch_stuck_focus_after_longpress() -> None:
+    """After a REAL (touch) long press opens Message options, the popup window can swallow the
+    finger-up, so RecyclerListView keeps stale touch state (currentChildView still pressed,
+    longPressCalled still true). TalkBack focus then sticks on that message after Back until a
+    scroll (whose onScrollStateChanged clears exactly that state) happens. Opening Message options
+    from TalkBack's Actions menu sends no touch, so it never shows the bug. Fix: clear that state
+    when the message menu closes."""
+    rl = JAVA / "org/telegram/ui/Components/RecyclerListView.java"
+    marker = "a11y-fork: reset touch state after menu v1"
+    if not rl.exists():
+        print("WARN: RecyclerListView.java missing (stuck focus)")
+        return
+    t = rl.read_text(encoding="utf-8")
+    if marker not in t:
+        anchor = "    public void cancelClickRunnables(boolean uncheck) {\n"
+        if t.count(anchor) != 1:
+            print("WARN: RecyclerListView cancelClickRunnables anchor found %d times (stuck focus)" % t.count(anchor))
+            return
+        method = (
+            "    // " + marker + "\n"
+            "    public void a11yResetTouchState() {\n"
+            "        try {\n"
+            "            if (selectChildRunnable != null) {\n"
+            "                AndroidUtilities.cancelRunOnUIThread(selectChildRunnable);\n"
+            "                selectChildRunnable = null;\n"
+            "            }\n"
+            "            if (currentChildView != null) {\n"
+            "                View a11yChild = currentChildView;\n"
+            "                MotionEvent a11yCancel = MotionEvent.obtain(0, 0, MotionEvent.ACTION_CANCEL, 0, 0, 0);\n"
+            "                try {\n"
+            "                    a11yChild.onTouchEvent(a11yCancel);\n"
+            "                } catch (Throwable ignore) {\n"
+            "                }\n"
+            "                a11yCancel.recycle();\n"
+            "                onChildPressed(a11yChild, 0, 0, false);\n"
+            "                currentChildView = null;\n"
+            "                removeSelection(a11yChild, null);\n"
+            "            }\n"
+            "            interceptedByChild = false;\n"
+            "            if (longPressCalled) {\n"
+            "                longPressCalled = false;\n"
+            "                if (onItemLongClickListenerExtended != null) {\n"
+            "                    onItemLongClickListenerExtended.onLongClickRelease();\n"
+            "                }\n"
+            "            }\n"
+            "            selectorRect.setEmpty();\n"
+            "        } catch (Throwable e) {\n"
+            "            FileLog.e(e);\n"
+            "        }\n"
+            "    }\n\n"
+        )
+        t = t.replace(anchor, method + anchor, 1)
+        rl.write_text(t, encoding="utf-8")
+        print("RecyclerListView a11yResetTouchState OK")
+    else:
+        print("RecyclerListView a11yResetTouchState already patched")
+
+    ca = JAVA / "org/telegram/ui/ChatActivity.java"
+    if not ca.exists():
+        print("WARN: ChatActivity.java missing (stuck focus)")
+        return
+    c = ca.read_text(encoding="utf-8")
+    if marker in c:
+        print("ChatActivity stuck-focus reset already patched")
+        return
+    anchor = ("                    scrimPopupWindowItems = null;\n"
+              "                    chatLayoutManager.setCanScrollVertically(true);\n")
+    n = c.count(anchor)
+    if n < 1:
+        print("WARN: ChatActivity message-menu dismiss anchor not found (stuck focus)")
+        return
+    add = (
+        "                    // " + marker + "\n"
+        "                    try {\n"
+        "                        if (org.telegram.messenger.AndroidUtilities.isAccessibilityScreenReaderEnabled() && chatListView != null) {\n"
+        "                            chatListView.a11yResetTouchState();\n"
+        "                            chatListView.post(() -> chatListView.a11yResetTouchState());\n"
+        "                        }\n"
+        "                    } catch (Throwable ignore) {\n"
+        "                    }\n"
+    )
+    c = c.replace(anchor, anchor + add)
+    ca.write_text(c, encoding="utf-8")
+    print("ChatActivity stuck-focus reset OK (%d menu dismiss sites)" % n)
+
+
 def patch_longclickable_flag() -> None:
     """TalkBack plays its "long press" sound by looking at the node's long-clickable flag. A message
     node (and each of its virtual parts) answered ACTION_LONG_CLICK but never said "long-clickable",
@@ -6718,6 +6804,7 @@ def main() -> int:
     patch_more_unlabeled_buttons()
     patch_reply_longpress_opens_options()
     patch_longclickable_flag()
+    patch_stuck_focus_after_longpress()
     if not MEHRAN:
         patch_chat_message_cell_granularity_navigation_legacy()
     patch_stuck_together_bubbles_long_press()
