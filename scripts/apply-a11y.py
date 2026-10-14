@@ -2274,6 +2274,7 @@ def patch_chat_message_cell_accessibility_long_click() -> None:
         "                            float a11yX = !a11yCenter && lastTouchX > 0 ? lastTouchX : getWidth() / 2f;\n"
         "                            float a11yY = !a11yCenter && lastTouchY > 0 ? lastTouchY : getHeight() / 2f;\n"
         "                            delegate.didLongPress(ChatMessageCell.this, a11yX, a11yY);\n"
+        "                            sendAccessibilityEventForVirtualView(virtualViewId, AccessibilityEvent.TYPE_VIEW_LONG_CLICKED);\n"
         "                            return true;\n"
         "                        }\n"
         "                    } catch (Throwable e) { FileLog.e(e); }\n"
@@ -6580,173 +6581,6 @@ def patch_round3_category_folders() -> None:
     print("DialogsActivity category folders OK")
 
 
-def patch_round4_menu_back_focus() -> None:
-    """Message options closed with Back: TalkBack focus goes back to the message the menu was opened on,
-    so swiping right continues with the next message (before, the focus was lost until a two-finger scroll)."""
-    p = JAVA / "org/telegram/ui/ChatActivity.java"
-    if not p.exists():
-        print("WARN: ChatActivity missing (menu back focus)")
-        return
-    t = p.read_text(encoding="utf-8")
-    if "a11y-fork: menu back focus" in t:
-        print("ChatActivity menu back focus already patched")
-        return
-    head = ("            scrimPopupWindow = new ActionBarPopupWindow(scrimPopupContainerLayout, LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT) {\n"
-            "                @Override\n"
-            "                public void dismiss() {\n"
-            "                    super.dismiss();\n"
-            "                    if (scrimPopupWindow != this) {\n"
-            "                        return;\n"
-            "                    }\n"
-            "                    if (Bulletin.getVisibleBulletin() == messageSeenPrivacyBulletin && messageSeenPrivacyBulletin != null) {\n")
-    if t.count(head) != 1:
-        print("WARN: ChatActivity message popup dismiss anchor found %d times (menu back focus)" % t.count(head))
-        return
-    mid = ("                        messageSeenPrivacyBulletin.hide();\n"
-           "                        messageSeenPrivacyBulletin = null;\n"
-           "                    }\n"
-           "                    scrimPopupWindow = null;\n"
-           "                    menuDeleteItem = null;\n"
-           "                    scrimPopupWindowItems = null;\n"
-           "                    chatLayoutManager.setCanScrollVertically(true);\n")
-    if t.count(head + mid) != 1:
-        print("WARN: ChatActivity dismiss body anchor found %d times (menu back focus)" % t.count(head + mid))
-        return
-    t = t.replace(head + mid, "            final MessageObject a11yFocusMessage = selectedObject; // a11y-fork: menu back focus\n            a11yMenuOptionChosen = false;\n" + head + mid + "                    a11yRestoreFocusAfterMenu(a11yFocusMessage);\n", 1)
-    click = ("                    cell.setOnClickListener(v1 -> {\n"
-             "                        if (selectedObject == null || i >= options.size()) {\n"
-             "                            return;\n"
-             "                        }\n"
-             "                        processSelectedOption(options.get(i));\n")
-    if t.count(click) != 1:
-        print("WARN: ChatActivity menu item click anchor found %d times (menu back focus)" % t.count(click))
-        return
-    t = t.replace(click, click.replace("                        processSelectedOption(options.get(i));\n",
-                                       "                        a11yMenuOptionChosen = true;\n                        processSelectedOption(options.get(i));\n"), 1)
-    anchor = "    public void closeMenu() {\n        closeMenu(true);\n    }\n"
-    if t.count(anchor) != 1:
-        print("WARN: ChatActivity closeMenu anchor not found (menu back focus)")
-        return
-    helper = r'''    private boolean a11yMenuOptionChosen;
-
-    private void a11yRestoreFocusAfterMenu(final MessageObject message) {
-        try {
-            if (message == null || !AndroidUtilities.isAccessibilityScreenReaderEnabled()) {
-                return;
-            }
-            AndroidUtilities.runOnUIThread(() -> {
-                try {
-                    if (scrimPopupWindow != null || chatListView == null) {
-                        return;
-                    }
-                    // an option that opened another screen or a dialog, or put the cursor in the message field, keeps its own focus
-                    if (getParentLayout() == null || getParentLayout().getLastFragment() != this || visibleDialog != null
-                            || (chatActivityEnterView != null && chatActivityEnterView.getEditField() != null && chatActivityEnterView.getEditField().isFocused())) {
-                        return;
-                    }
-                    for (int i = 0; i < chatListView.getChildCount(); i++) {
-                        final View c = chatListView.getChildAt(i);
-                        if (c instanceof ChatMessageCell) {
-                            final MessageObject mo = ((ChatMessageCell) c).getMessageObject();
-                            if (mo != null && mo.getId() == message.getId() && mo.getDialogId() == message.getDialogId()) {
-                                c.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null);
-                                return;
-                            }
-                        }
-                    }
-                } catch (Throwable e) {
-                    FileLog.e(e);
-                }
-            }, 350);
-        } catch (Throwable e) {
-            FileLog.e(e);
-        }
-    }
-
-'''
-    t = t.replace(anchor, helper + anchor, 1)
-    p.write_text(t, encoding="utf-8")
-    print("ChatActivity menu back focus OK")
-
-
-def patch_round4_longpress_cancel_touch() -> None:
-    """Long press (double-tap-and-hold) under TalkBack: the finger is still 'down' when the Message options menu
-    opens, so the chat list never receives the end of that touch and TalkBack's swipe navigation stays stuck until
-    a two-finger scroll resets it (opening the same menu from TalkBack's actions list has no such problem).
-    Right after the menu has opened, the unfinished touch is cancelled once, the way Telegram itself cancels it
-    in its own list code."""
-    p = JAVA / "org/telegram/ui/ChatActivity.java"
-    if not p.exists():
-        print("WARN: ChatActivity missing (long-press touch cancel)")
-        return
-    t = p.read_text(encoding="utf-8")
-    if "a11y-fork: long-press touch cancel" in t:
-        print("ChatActivity long-press touch cancel already patched")
-        return
-    old = ("            if (a11yOn2) {\n"
-           "                createMenu(cell, true, false, x, y, true);\n"
-           "            } else {\n")
-    if t.count(old) != 1:
-        print("WARN: ChatActivity didLongPress a11y branch found %d times (long-press touch cancel)" % t.count(old))
-        return
-    new = ("            if (a11yOn2) {\n"
-           "                createMenu(cell, true, false, x, y, true);\n"
-           "                a11yCancelTouchAfterLongPress(); // a11y-fork: long-press touch cancel\n"
-           "            } else {\n")
-    t = t.replace(old, new, 1)
-    anchor = "    public void closeMenu() {\n        closeMenu(true);\n    }\n"
-    if t.count(anchor) != 1:
-        print("WARN: ChatActivity closeMenu anchor not found (long-press touch cancel)")
-        return
-    helper = r'''    private void a11yCancelTouchAfterLongPress() {
-        try {
-            if (chatListView == null) {
-                return;
-            }
-            chatListView.post(() -> {
-                try {
-                    final MotionEvent a11yCancel = MotionEvent.obtain(0, 0, MotionEvent.ACTION_CANCEL, 0, 0, 0);
-                    chatListView.dispatchTouchEvent(a11yCancel);
-                    a11yCancel.recycle();
-                } catch (Throwable e) {
-                    FileLog.e(e);
-                }
-            });
-        } catch (Throwable e) {
-            FileLog.e(e);
-        }
-    }
-
-'''
-    t = t.replace(anchor, helper + anchor, 1)
-    p.write_text(t, encoding="utf-8")
-    print("ChatActivity long-press touch cancel OK")
-
-
-def patch_round4_defer_accessibility_long_click() -> None:
-    """TalkBack's own long-click (the one with TalkBack's long-press sound) used to open the Message options
-    menu from inside the accessibility action itself. The menu now opens right after the action has returned,
-    so TalkBack has finished handling the action before the window changes."""
-    p = JAVA / "org/telegram/ui/Cells/ChatMessageCell.java"
-    if not p.exists():
-        print("WARN: ChatMessageCell missing (deferred long-click)")
-        return
-    t = p.read_text(encoding="utf-8")
-    old = "delegate.didLongPress(ChatMessageCell.this, a11yX, a11yY);"
-    n = t.count(old)
-    if n == 0:
-        if "a11y-fork: deferred long-click" in t:
-            print("ChatMessageCell deferred long-click already patched")
-        else:
-            print("WARN: ChatMessageCell accessibility long-click anchors not found (deferred long-click)")
-        return
-    new = ("{ final float a11yFx = a11yX, a11yFy = a11yY; // a11y-fork: deferred long-click\n"
-           "                    ChatMessageCell.this.post(() -> { if (delegate != null && currentMessageObject != null) { delegate.didLongPress(ChatMessageCell.this, a11yFx, a11yFy); } }); }")
-    t = t.replace(old, new)
-    p.write_text(t, encoding="utf-8")
-    print("ChatMessageCell deferred accessibility long-click OK (%d places)" % n)
-
-
 def main() -> int:
     if not Path("telegram").is_dir():
         print("ERROR: telegram/ not found (clone DrKLO/Telegram as ./telegram)", file=sys.stderr)
@@ -6832,9 +6666,6 @@ def main() -> int:
     patch_round3_link_long_press_copy()
     patch_round3_download_beep()
     patch_round3_category_folders()
-    # patch_round4_menu_back_focus() is switched off: it did not fix the stuck focus and TalkBack read the menu items by itself after a long press
-    patch_round4_longpress_cancel_touch()
-    patch_round4_defer_accessibility_long_click()
     # MUST stay last: it rewrites English text injected by the patches above
     # (Selected / Bot Buttons / Forwarded to Saved / Accessible settings ...).
     patch_a11y_localization()
