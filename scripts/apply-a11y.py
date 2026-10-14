@@ -209,7 +209,7 @@ def _patch_a11y_string_resources() -> None:
         "A11yCommentOne": "1 comment",
         "A11yCommentsCount": "%1$d comments",
         "A11yUserStatusLabel": "User status announcements (typing, recording, online): %s",
-        "A11yChatOpenSoundLabel": "Touch sound when a chat opens and when a message is tapped: %s",
+        "A11yChatOpenSoundLabel": "Touch sound when a message is tapped: %s",
         "A11ySenderOptionsLabel": "Sender options in message menu: %s",
         "A11yVoiceShareSaveLabel": "Share and save to music for voice messages: %s",
         "A11yPlayerSeekLabel": "Rewind and forward in audio player: %s",
@@ -293,7 +293,7 @@ def _patch_a11y_string_resources() -> None:
         "A11yCommentOne": "1 نظر",
         "A11yCommentsCount": "%1$d نظر",
         "A11yUserStatusLabel": "اعلام وضعیت کاربر (در حال تایپ، ضبط ویس، آنلاین): %s",
-        "A11yChatOpenSoundLabel": "صدای لمس هنگام باز شدن چت و ضربه روی پیام: %s",
+        "A11yChatOpenSoundLabel": "صدای لمس هنگام ضربه روی پیام: %s",
         "A11ySenderOptionsLabel": "گزینه‌های فرستنده در منوی پیام: %s",
         "A11yVoiceShareSaveLabel": "اشتراک‌گذاری و ذخیره در موسیقی برای پیام‌های صوتی: %s",
         "A11yPlayerSeekLabel": "عقب و جلو در پخش‌کننده‌ی صدا: %s",
@@ -2725,6 +2725,8 @@ def patch_fork_quiet_download_state() -> None:
                                       "        }\n", 1)
             sac.write_text(t, encoding="utf-8")
             print("SharedAudioCell download-state setting OK")
+        elif "AccessibilityTransferAnnouncer" in t:
+            print("SharedAudioCell uses the fork's announcer (made quiet unless the switch is on)")
         else:
             print("WARN: SharedAudioCell appendAccessibilityDownloadState not found")
 
@@ -6581,6 +6583,66 @@ def patch_round3_category_folders() -> None:
     print("DialogsActivity category folders OK")
 
 
+def patch_mehran_transfer_announcer_quiet() -> None:
+    """The fork's AccessibilityTransferAnnouncer says 'downloaded / not downloaded' and the percentage of every
+    transfer. Our project already reads transfer percentages its own way, and the state words are an Accessible
+    Settings switch (default Off), so the announcer follows that same switch and stays silent otherwise."""
+    p = JAVA / "org/telegram/ui/Components/AccessibilityTransferAnnouncer.java"
+    if not p.exists():
+        print("AccessibilityTransferAnnouncer not present (older fork patch) -- nothing to quiet")
+        return
+    t = p.read_text(encoding="utf-8")
+    if "a11y-fork: quiet unless" in t:
+        print("AccessibilityTransferAnnouncer already quiet")
+        return
+    reps = [
+        ("    public void onProgress(long loadedSize, long totalSize, boolean withSize) {\n        if (totalSize <= 0) {\n",
+         "    public void onProgress(long loadedSize, long totalSize, boolean withSize) {\n        if (a11yQuiet() || totalSize <= 0) { // a11y-fork: quiet unless the state-words switch is on\n"),
+        ("    public void onSuccess() {\n",
+         "    public void onSuccess() {\n        if (a11yQuiet()) {\n            reset();\n            return;\n        }\n"),
+        ("    public void setState(Object key, int newState, float progress, long totalSize, boolean withSize) {\n",
+         "    public void setState(Object key, int newState, float progress, long totalSize, boolean withSize) {\n        if (a11yQuiet()) {\n            return;\n        }\n"),
+        ("    private boolean isRead() {\n",
+         "    private static boolean a11yQuiet() {\n        try {\n            return !org.telegram.messenger.A11yConfig.getAnnounceDownloadState();\n        } catch (Throwable e) {\n            return true;\n        }\n    }\n\n    private boolean isRead() {\n"),
+    ]
+    for old, new in reps:
+        if t.count(old) != 1:
+            print("WARN: AccessibilityTransferAnnouncer anchor not found: %r" % old[:60])
+            return
+        t = t.replace(old, new, 1)
+    p.write_text(t, encoding="utf-8")
+    print("AccessibilityTransferAnnouncer made quiet unless the state-words switch is on OK")
+
+
+def patch_longpress_same_menu_path() -> None:
+    """A long press under TalkBack opened the Message options with other arguments than the 'Message options'
+    action of TalkBack's actions list (which has never had the stuck-focus problem). An ordinary single message now
+    uses exactly the arguments of that action path; albums and service messages keep what they had."""
+    p = JAVA / "org/telegram/ui/ChatActivity.java"
+    if not p.exists():
+        print("WARN: ChatActivity missing (long press same menu path)")
+        return
+    t = p.read_text(encoding="utf-8")
+    if "a11y-fork: long press same menu path" in t:
+        print("ChatActivity long press same menu path already patched")
+        return
+    old = ("            if (a11yOn2) {\n"
+           "                createMenu(cell, true, false, x, y, true);\n"
+           "            } else {\n")
+    if t.count(old) != 1:
+        print("WARN: ChatActivity long-press menu call found %d times (long press same menu path)" % t.count(old))
+        return
+    new = ("            if (a11yOn2) { // a11y-fork: long press same menu path\n"
+           "                final MessageObject a11yMo = cell != null ? cell.getMessageObject() : null;\n"
+           "                final boolean a11yGrouped = cell != null && cell.getCurrentMessagesGroup() != null;\n"
+           "                final boolean a11yPlain = a11yMo != null && a11yMo.messageOwner != null && a11yMo.messageOwner.action == null && !a11yGrouped;\n"
+           "                // same arguments as didPressOther (the Message options action of TalkBack's actions list)\n"
+           "                createMenu(cell, true, false, x, y, a11yGrouped || !a11yPlain, !a11yPlain);\n"
+           "            } else {\n")
+    p.write_text(t.replace(old, new, 1), encoding="utf-8")
+    print("ChatActivity long press uses the same menu path as the Message options action OK")
+
+
 def main() -> int:
     if not Path("telegram").is_dir():
         print("ERROR: telegram/ not found (clone DrKLO/Telegram as ./telegram)", file=sys.stderr)
@@ -6634,7 +6696,7 @@ def main() -> int:
         patch_album_and_user_status_switches()
     patch_admin_tag_switch()
     patch_share_send_button_label()
-    patch_chat_open_sound()
+    # patch_chat_open_sound() is off: the fork plays the click when a chat row is pressed
     patch_message_tap_sound()
     patch_proxy_toolbar_button()
     patch_old_style_menu()
@@ -6643,7 +6705,7 @@ def main() -> int:
     patch_legacy_navigation_drawer()
     patch_old_menu_hides_options()
     patch_old_menu_extras()
-    patch_dialog_row_tap_sound()
+    # patch_dialog_row_tap_sound() is off: the fork plays the click when a chat row is pressed
     patch_voice_share()
     patch_player_seek_buttons()
     patch_sender_options_menu()
@@ -6666,6 +6728,8 @@ def main() -> int:
     patch_round3_link_long_press_copy()
     patch_round3_download_beep()
     patch_round3_category_folders()
+    patch_mehran_transfer_announcer_quiet()
+    patch_longpress_same_menu_path()
     # MUST stay last: it rewrites English text injected by the patches above
     # (Selected / Bot Buttons / Forwarded to Saved / Accessible settings ...).
     patch_a11y_localization()
