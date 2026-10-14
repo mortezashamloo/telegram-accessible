@@ -2274,7 +2274,6 @@ def patch_chat_message_cell_accessibility_long_click() -> None:
         "                            float a11yX = !a11yCenter && lastTouchX > 0 ? lastTouchX : getWidth() / 2f;\n"
         "                            float a11yY = !a11yCenter && lastTouchY > 0 ? lastTouchY : getHeight() / 2f;\n"
         "                            delegate.didLongPress(ChatMessageCell.this, a11yX, a11yY);\n"
-        "                            sendAccessibilityEventForVirtualView(virtualViewId, AccessibilityEvent.TYPE_VIEW_LONG_CLICKED);\n"
         "                            return true;\n"
         "                        }\n"
         "                    } catch (Throwable e) { FileLog.e(e); }\n"
