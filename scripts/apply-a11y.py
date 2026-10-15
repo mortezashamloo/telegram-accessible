@@ -6779,6 +6779,55 @@ def patch_row_click_no_clicked_event() -> None:
         "RecyclerListView.clickItem no TYPE_VIEW_CLICKED")
 
 
+def patch_audio_bar_position_refresh() -> None:
+    """The top audio-player bar says how far the music got ("30 seconds of 5 minutes"), but that text is built only
+    when TalkBack asks for the node and the bar sends nothing when playback moves on, so while focus rests on the bar
+    TalkBack keeps the old number. While the bar's title is the focused item, tell TalkBack at most once every 1.5 s
+    that the window content changed (a plain event: it refreshes TalkBack's copy of the node and is not a live region,
+    so it is not spoken)."""
+    fcv = JAVA / "org/telegram/ui/Components/FragmentContextView.java"
+    marker = "a11y-fork: audio bar position refresh"
+    _multi_replace_once(fcv, [
+        ("        } else if (id == NotificationCenter.messagePlayingProgressDidChanged) {\n"
+         "            if (currentStyle == STYLE_AUDIO_PLAYER) {\n"
+         "                invalidate();\n"
+         "            }\n"
+         "        }\n"
+         "    }\n",
+         "        } else if (id == NotificationCenter.messagePlayingProgressDidChanged) {\n"
+         "            if (currentStyle == STYLE_AUDIO_PLAYER) {\n"
+         "                invalidate();\n"
+         "                a11yRefreshPlaybackPosition(); // " + marker + "\n"
+         "            }\n"
+         "        }\n"
+         "    }\n"
+         "\n"
+         "    // " + marker + "\n"
+         "    private long a11yLastPositionRefresh;\n"
+         "\n"
+         "    private void a11yRefreshPlaybackPosition() {\n"
+         "        try {\n"
+         "            if (titleTextView == null || !org.telegram.messenger.AndroidUtilities.isAccessibilityScreenReaderEnabled()) {\n"
+         "                return;\n"
+         "            }\n"
+         "            final long now = android.os.SystemClock.uptimeMillis();\n"
+         "            if (now - a11yLastPositionRefresh < 1500) {\n"
+         "                return;\n"
+         "            }\n"
+         "            for (int i = 0; i < titleTextView.getChildCount(); i++) {\n"
+         "                final View child = titleTextView.getChildAt(i);\n"
+         "                if (child != null && child.isAccessibilityFocused()) {\n"
+         "                    a11yLastPositionRefresh = now;\n"
+         "                    child.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);\n"
+         "                    break;\n"
+         "                }\n"
+         "            }\n"
+         "        } catch (Throwable ignore) {\n"
+         "        }\n"
+         "    }\n"),
+    ], marker, "FragmentContextView audio bar position refresh")
+
+
 def patch_longpress_same_menu_path() -> None:
     """A long press under TalkBack opened the Message options with other arguments than the 'Message options'
     action of TalkBack's actions list (which has never had the stuck-focus problem). An ordinary single message now
@@ -6897,6 +6946,7 @@ def main() -> int:
     patch_mehran_transfer_announcer_quiet()
     patch_remove_mehran_progress_percent()
     patch_row_click_no_clicked_event()
+    patch_audio_bar_position_refresh()
     patch_longpress_same_menu_path()
     # MUST stay last: it rewrites English text injected by the patches above
     # (Selected / Bot Buttons / Forwarded to Saved / Accessible settings ...).
