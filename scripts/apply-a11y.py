@@ -6840,15 +6840,15 @@ def patch_stuck_focus_after_longpress() -> None:
 
 def patch_longpress_same_menu_path() -> None:
     """Ensure a long press under TalkBack immediately resets any pending touch state on chatListView
-    before opening Message options, using the valid 6-argument createMenu signature."""
+    before opening Message options."""
     p = JAVA / "org/telegram/ui/ChatActivity.java"
     if not p.exists():
         print("WARN: ChatActivity missing (long press same menu path)")
         return
     t = p.read_text(encoding="utf-8")
-    marker = "a11y-fork: long press same menu path v3"
+    marker = "a11y-fork: long press same menu path v6"
     if marker in t:
-        print("ChatActivity long press same menu path v3 already patched")
+        print("ChatActivity long press same menu path v6 already patched")
         return
     old = ("            if (a11yOn2) {\n"
            "                createMenu(cell, true, false, x, y, true);\n"
@@ -6869,7 +6869,7 @@ def patch_longpress_same_menu_path() -> None:
            "                createMenu(cell, true, false, x, y, true);\n"
            "            } else {\n")
     p.write_text(t.replace(old, new, 1), encoding="utf-8")
-    print("ChatActivity long press uses the same menu path v3 OK")
+    print("ChatActivity long press uses the same menu path v6 OK")
 
 
 def main() -> int:
