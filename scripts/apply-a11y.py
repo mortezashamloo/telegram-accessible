@@ -6700,6 +6700,85 @@ def patch_mehran_transfer_announcer_quiet() -> None:
     print("AccessibilityTransferAnnouncer made quiet unless the state-words switch is on OK")
 
 
+def _multi_replace_once(path: Path, pairs, marker: str, label: str) -> None:
+    """Apply several exact replacements to one file: all of them or none (each anchor must occur exactly once)."""
+    if not path.exists():
+        print("%s not present -- nothing to do (%s)" % (path.name, label))
+        return
+    t = path.read_text(encoding="utf-8")
+    if marker in t:
+        print("%s already patched" % label)
+        return
+    for old, _new in pairs:
+        if t.count(old) != 1:
+            print("WARN: %s anchor found %d times in %s: %r" % (label, t.count(old), path.name, old[:70]))
+            return
+    for old, new in pairs:
+        t = t.replace(old, new, 1)
+    path.write_text(t, encoding="utf-8")
+    print("%s OK" % label)
+
+
+def patch_remove_mehran_progress_percent() -> None:
+    """The fork patch speaks the percentage (and 'x of y MB') of every download and upload: as the progress
+    changes, and inside what a message says. Our own RadialProgress already announces progress well, so the fork's
+    percentage is removed. The plain words (Downloading / Sending / Downloaded / Not downloaded) are kept: they stay
+    behind the existing 'Downloaded / not downloaded status' switch."""
+    marker = "a11y-fork: no progress percent"
+    cmc = JAVA / "org/telegram/ui/Cells/ChatMessageCell.java"
+    _multi_replace_once(cmc, [
+        ("    private void announceTransferProgress(boolean sending, long loadedSize, long totalSize) {\n",
+         "    private void announceTransferProgress(boolean sending, long loadedSize, long totalSize) {\n"
+         "        if (true) { // " + marker + ": our own RadialProgress announces it\n"
+         "            return;\n"
+         "        }\n"),
+        ("        sb.append(\" \").append(percent).append(\"%\");\n"
+         "        if (totalSize > 0) {\n"
+         "            sb.append(\", \").append(formatString(R.string.AccDescrTransferredSize, AndroidUtilities.formatFileSize(loadedSize), AndroidUtilities.formatFileSize(totalSize)));\n"
+         "        }\n",
+         "        // " + marker + ": only the word (Downloading / Sending), no percentage and no size\n"),
+    ], marker, "ChatMessageCell fork progress percent removed")
+    ata = JAVA / "org/telegram/ui/Components/AccessibilityTransferAnnouncer.java"
+    _multi_replace_once(ata, [
+        ("    public void onProgress(long loadedSize, long totalSize, boolean withSize) {\n",
+         "    public void onProgress(long loadedSize, long totalSize, boolean withSize) {\n"
+         "        if (true) { // " + marker + "\n"
+         "            return;\n"
+         "        }\n"),
+        ("        if (sameFile && newState == state && (newState != STATE_DOWNLOADING || step == stateStep || now - stateTime < MIN_INTERVAL)) {\n",
+         "        if (sameFile && newState == state) { // " + marker + ": no re-announcing while the percentage moves\n"),
+        ("        if (withSize && totalSize > 0) {\n"
+         "            return LocaleController.getString(R.string.Downloading) + \" \" + percent + \"%, \"\n"
+         "                + LocaleController.formatString(R.string.OfS, AndroidUtilities.formatFileSize(loadedSize), AndroidUtilities.formatFileSize(totalSize));\n"
+         "        }\n"
+         "        return LocaleController.getString(R.string.Downloading) + \" \" + percent + \"%\";\n",
+         "        return LocaleController.getString(R.string.Downloading); // " + marker + "\n"),
+    ], marker, "AccessibilityTransferAnnouncer progress percent removed")
+
+
+def patch_row_click_no_clicked_event() -> None:
+    """The newer fork patch makes a screen-reader press on a chat-list row (and a topic row) behave like a
+    finger's press by playing the click AND sending TYPE_VIEW_CLICKED. TalkBack answers that event by speaking the
+    whole row again, so after a tap the preview was read to its end and then the unread message was read once more
+    inside the chat. The older fork patch sent no such event. Keep the click sound, drop the event."""
+    rl = JAVA / "org/telegram/ui/Components/RecyclerListView.java"
+    _gate_once(
+        rl,
+        "        item.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_CLICKED);\n"
+        "        if (onItemClickListener != null) {\n"
+        "            onItemClickListener.onItemClick(item, position);\n"
+        "        } else if (onItemClickListenerExtended != null) {\n"
+        "            onItemClickListenerExtended.onItemClick(item, position, x, y);\n"
+        "        }\n",
+        "        // a11y-fork: no clicked event on a row press (TalkBack read the whole row again after it)\n"
+        "        if (onItemClickListener != null) {\n"
+        "            onItemClickListener.onItemClick(item, position);\n"
+        "        } else if (onItemClickListenerExtended != null) {\n"
+        "            onItemClickListenerExtended.onItemClick(item, position, x, y);\n"
+        "        }\n",
+        "RecyclerListView.clickItem no TYPE_VIEW_CLICKED")
+
+
 def patch_longpress_same_menu_path() -> None:
     """A long press under TalkBack opened the Message options with other arguments than the 'Message options'
     action of TalkBack's actions list (which has never had the stuck-focus problem). An ordinary single message now
@@ -6816,6 +6895,8 @@ def main() -> int:
     patch_round3_download_beep()
     patch_round3_category_folders()
     patch_mehran_transfer_announcer_quiet()
+    patch_remove_mehran_progress_percent()
+    patch_row_click_no_clicked_event()
     patch_longpress_same_menu_path()
     # MUST stay last: it rewrites English text injected by the patches above
     # (Selected / Bot Buttons / Forwarded to Saved / Accessible settings ...).
