@@ -117,11 +117,12 @@ def _set_string(path: Path, name: str, value: str) -> None:
         return
     t = path.read_text(encoding="utf-8")
     if f'name="{name}"' in t:
-        import re
-        pattern = re.compile(rf'(<string\s+name="{re.escape(name)}">)([^<]*)(</string>)')
-        def _rep(m):
-            return m.group(1) + value + m.group(3)
-        t2 = pattern.sub(_rep, t, count=1)
+        t2, _ = re.subn(
+            rf'(<string\s+name="{name}">)[^<]*(</string>)',
+            lambda m: m.group(1) + value + m.group(2),
+            t,
+            count=1,
+        )
         path.write_text(t2, encoding="utf-8")
     else:
         path.write_text(
@@ -208,7 +209,7 @@ def _patch_a11y_string_resources() -> None:
         "A11yCommentOne": "1 comment",
         "A11yCommentsCount": "%1$d comments",
         "A11yUserStatusLabel": "User status announcements (typing, recording, online): %s",
-        "A11yChatOpenSoundLabel": "Touch sound when a chat opens and when a message is tapped: %s",
+        "A11yChatOpenSoundLabel": "Touch sound when a message is tapped: %s",
         "A11ySenderOptionsLabel": "Sender options in message menu: %s",
         "A11yVoiceShareSaveLabel": "Share and save to music for voice messages: %s",
         "A11yPlayerSeekLabel": "Rewind and forward in audio player: %s",
@@ -292,7 +293,7 @@ def _patch_a11y_string_resources() -> None:
         "A11yCommentOne": "1 نظر",
         "A11yCommentsCount": "%1$d نظر",
         "A11yUserStatusLabel": "اعلام وضعیت کاربر (در حال تایپ، ضبط ویس، آنلاین): %s",
-        "A11yChatOpenSoundLabel": "صدای لمس هنگام باز شدن چت و ضربه روی پیام: %s",
+        "A11yChatOpenSoundLabel": "صدای لمس هنگام ضربه روی پیام: %s",
         "A11ySenderOptionsLabel": "گزینه‌های فرستنده در منوی پیام: %s",
         "A11yVoiceShareSaveLabel": "اشتراک‌گذاری و ذخیره در موسیقی برای پیام‌های صوتی: %s",
         "A11yPlayerSeekLabel": "عقب و جلو در پخش‌کننده‌ی صدا: %s",
@@ -491,8 +492,7 @@ def install_a11y_config() -> None:
                 "            int nowYear = now.get(java.util.Calendar.YEAR);\n"
                 "            int msgDay = msg.get(java.util.Calendar.DAY_OF_YEAR);\n"
                 "            int msgYear = msg.get(java.util.Calendar.YEAR);\n"
-                "            java.text.SimpleDateFormat timeFmt = new java.text.SimpleDateFormat(\"HH:mm\", java.util.Locale.getDefault());\n"
-                "            String time = timeFmt.format(new java.util.Date(dateMs));\n"
+                "            String time = LocaleController.getInstance().getFormatterDay().format(new java.util.Date(dateMs));\n"
                 "            if (msgDay == nowDay && msgYear == nowYear) {\n"
                 "                return LocaleController.formatString(R.string.TodayAtFormatted, time);\n"
                 "            } else if (msgDay + 1 == nowDay && msgYear == nowYear) {\n"
@@ -500,7 +500,7 @@ def install_a11y_config() -> None:
                 "            } else {\n"
                 "                String solar = formatSolarDate(unixSeconds);\n"
                 "                if (solar == null || solar.isEmpty()) return LocaleController.formatDateAudio(unixSeconds, true);\n"
-                "                return solar + \" \" + LocaleController.getString(R.string.A11yAt) + \" \" + time;\n"
+                "                return LocaleController.formatString(R.string.formatDateAtTime, solar, time);\n"
                 "            }\n"
                 "        } catch (Throwable ignore) {\n"
                 "            return LocaleController.formatDateAudio(unixSeconds, true);\n"
@@ -1629,7 +1629,9 @@ def patch_dialogcell_time_last() -> None:
         "            if (lastMessageDate == 0) {\n"
         "                a11yLastDate = message.messageOwner.date;\n"
         "            }\n"
-        "            String a11yPreviewDate = LocaleController.formatDateAudio(a11yLastDate, true);\n"
+        "            String a11yPreviewDate = (isTopic && org.telegram.messenger.A11yConfig.getSolarCalendar())\n"
+        "                    ? org.telegram.messenger.A11yConfig.formatSolarDateAudio(a11yLastDate)\n"
+        "                    : LocaleController.formatDateAudio(a11yLastDate, true); // a11y-fork: topic rows follow the Solar calendar setting\n"
         "            if (message.isOut()) {\n"
         "                sb.append(LocaleController.formatString(\"AccDescrSentDate\", R.string.AccDescrSentDate, a11yPreviewDate));\n"
         "            } else {\n"
@@ -2724,6 +2726,8 @@ def patch_fork_quiet_download_state() -> None:
                                       "        }\n", 1)
             sac.write_text(t, encoding="utf-8")
             print("SharedAudioCell download-state setting OK")
+        elif "AccessibilityTransferAnnouncer" in t:
+            print("SharedAudioCell uses the fork's announcer (made quiet unless the switch is on)")
         else:
             print("WARN: SharedAudioCell appendAccessibilityDownloadState not found")
 
@@ -3120,6 +3124,92 @@ def patch_reply_longpress_opens_options() -> None:
         "            if (messageObject == null) return;\n"
         "            if (messageObject.isReplyToStory() && messageObject.messageOwner.replyStory != null) {\n",
         "ChatActivity reply long-press opens Message options")
+
+
+def patch_stuck_focus_after_longpress() -> None:
+    """After a REAL (touch) long press opens Message options, the popup window can swallow the
+    finger-up, so RecyclerListView keeps stale touch state (currentChildView still pressed,
+    longPressCalled still true). TalkBack focus then sticks on that message after Back until a
+    scroll (whose onScrollStateChanged clears exactly that state) happens. Opening Message options
+    from TalkBack's Actions menu sends no touch, so it never shows the bug. Fix: clear that state
+    when the message menu closes."""
+    rl = JAVA / "org/telegram/ui/Components/RecyclerListView.java"
+    marker = "a11y-fork: reset touch state after menu v1"
+    if not rl.exists():
+        print("WARN: RecyclerListView.java missing (stuck focus)")
+        return
+    t = rl.read_text(encoding="utf-8")
+    if marker not in t:
+        anchor = "    public void cancelClickRunnables(boolean uncheck) {\n"
+        if t.count(anchor) != 1:
+            print("WARN: RecyclerListView cancelClickRunnables anchor found %d times (stuck focus)" % t.count(anchor))
+            return
+        method = (
+            "    // " + marker + "\n"
+            "    public void a11yResetTouchState() {\n"
+            "        try {\n"
+            "            if (selectChildRunnable != null) {\n"
+            "                AndroidUtilities.cancelRunOnUIThread(selectChildRunnable);\n"
+            "                selectChildRunnable = null;\n"
+            "            }\n"
+            "            if (currentChildView != null) {\n"
+            "                View a11yChild = currentChildView;\n"
+            "                MotionEvent a11yCancel = MotionEvent.obtain(0, 0, MotionEvent.ACTION_CANCEL, 0, 0, 0);\n"
+            "                try {\n"
+            "                    a11yChild.onTouchEvent(a11yCancel);\n"
+            "                } catch (Throwable ignore) {\n"
+            "                }\n"
+            "                a11yCancel.recycle();\n"
+            "                onChildPressed(a11yChild, 0, 0, false);\n"
+            "                currentChildView = null;\n"
+            "                removeSelection(a11yChild, null);\n"
+            "            }\n"
+            "            interceptedByChild = false;\n"
+            "            if (longPressCalled) {\n"
+            "                longPressCalled = false;\n"
+            "                if (onItemLongClickListenerExtended != null) {\n"
+            "                    onItemLongClickListenerExtended.onLongClickRelease();\n"
+            "                }\n"
+            "            }\n"
+            "            selectorRect.setEmpty();\n"
+            "        } catch (Throwable e) {\n"
+            "            FileLog.e(e);\n"
+            "        }\n"
+            "    }\n\n"
+        )
+        t = t.replace(anchor, method + anchor, 1)
+        rl.write_text(t, encoding="utf-8")
+        print("RecyclerListView a11yResetTouchState OK")
+    else:
+        print("RecyclerListView a11yResetTouchState already patched")
+
+    ca = JAVA / "org/telegram/ui/ChatActivity.java"
+    if not ca.exists():
+        print("WARN: ChatActivity.java missing (stuck focus)")
+        return
+    c = ca.read_text(encoding="utf-8")
+    if marker in c:
+        print("ChatActivity stuck-focus reset already patched")
+        return
+    anchor = ("                    scrimPopupWindowItems = null;\n"
+              "                    chatLayoutManager.setCanScrollVertically(true);\n")
+    n = c.count(anchor)
+    if n < 1:
+        print("WARN: ChatActivity message-menu dismiss anchor not found (stuck focus)")
+        return
+    add = (
+        "                    // " + marker + "\n"
+        "                    try {\n"
+        "                        if (org.telegram.messenger.AndroidUtilities.isAccessibilityScreenReaderEnabled() && chatListView != null) {\n"
+        "                            chatListView.a11yResetTouchState();\n"
+        "                            chatListView.post(() -> chatListView.a11yResetTouchState());\n"
+        "                        }\n"
+        "                    } catch (Throwable ignore) {\n"
+        "                    }\n"
+    )
+    c = c.replace(anchor, anchor + add)
+    ca.write_text(c, encoding="utf-8")
+    print("ChatActivity stuck-focus reset OK (%d menu dismiss sites)" % n)
 
 
 def patch_longclickable_flag() -> None:
@@ -6333,7 +6423,10 @@ def patch_round3_link_long_press_copy() -> None:
         print("WARN: ChatActivity/AlertDialog missing (link copy)")
         return
     # 1) AlertDialog: a way to reach a row (to give it a long-click)
-    _r3_replace_once(
+    if "a11yGetItemView" in adlg.read_text(encoding="utf-8"):
+        print("AlertDialog a11yGetItemView already patched")
+    else:
+      _r3_replace_once(
         adlg,
         "    public int getItemsCount() {\n        return itemViews.size();\n    }\n",
         "    public int getItemsCount() {\n        return itemViews.size();\n    }\n\n"
@@ -6467,6 +6560,9 @@ def patch_round3_link_long_press_copy() -> None:
 def patch_round3_download_beep() -> None:
     """Beep when a download the user started finishes (FileLoader; wherever the focus is). Setting, default OFF."""
     p = JAVA / "org/telegram/messenger/FileLoader.java"
+    if p.exists() and "playDownloadDoneBeep" in p.read_text(encoding="utf-8"):
+        print("FileLoader download-finished beep already patched")
+        return
     _r3_replace_once(
         p,
         "                    if (document != null && messageObject.putInDownloadsStore) {\n"
@@ -6574,281 +6670,189 @@ def patch_round3_category_folders() -> None:
     print("DialogsActivity category folders OK")
 
 
-def patch_round4_menu_back_focus():
-    """Message options closed with Back: TalkBack focus goes back to the message the menu was opened on,
-    so swiping right continues with the next message (before, the focus was lost until a two-finger scroll)."""
-    p = JAVA / "org/telegram/ui/ChatActivity.java"
+def patch_mehran_transfer_announcer_quiet() -> None:
+    """The fork's AccessibilityTransferAnnouncer says 'downloaded / not downloaded' and the percentage of every
+    transfer. Our project already reads transfer percentages its own way, and the state words are an Accessible
+    Settings switch (default Off), so the announcer follows that same switch and stays silent otherwise."""
+    p = JAVA / "org/telegram/ui/Components/AccessibilityTransferAnnouncer.java"
     if not p.exists():
-        print("WARN: ChatActivity missing (menu back focus)")
+        print("AccessibilityTransferAnnouncer not present (older fork patch) -- nothing to quiet")
         return
     t = p.read_text(encoding="utf-8")
-    if "a11y-fork: menu back focus" in t:
-        print("ChatActivity menu back focus already patched")
+    if "a11y-fork: quiet unless" in t:
+        print("AccessibilityTransferAnnouncer already quiet")
         return
-    head = ("            scrimPopupWindow = new ActionBarPopupWindow(scrimPopupContainerLayout, LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT) {\n"
-            "                @Override\n"
-            "                public void dismiss() {\n"
-            "                    super.dismiss();\n"
-            "                    if (scrimPopupWindow != this) {\n"
-            "                        return;\n"
-            "                    }\n"
-            "                    if (Bulletin.getVisibleBulletin() == messageSeenPrivacyBulletin && messageSeenPrivacyBulletin != null) {\n")
-    if t.count(head) != 1:
-        print("WARN: ChatActivity message popup dismiss anchor found %d times (menu back focus)" % t.count(head))
-        return
-    mid = ("                        messageSeenPrivacyBulletin.hide();\n"
-           "                        messageSeenPrivacyBulletin = null;\n"
-           "                    }\n"
-           "                    scrimPopupWindow = null;\n"
-           "                    menuDeleteItem = null;\n"
-           "                    scrimPopupWindowItems = null;\n"
-           "                    chatLayoutManager.setCanScrollVertically(true);\n")
-    if t.count(head + mid) != 1:
-        print("WARN: ChatActivity dismiss body anchor found %d times (menu back focus)" % t.count(head + mid))
-        return
-    t = t.replace(head + mid, "            final MessageObject a11yFocusMessage = selectedObject; // a11y-fork: menu back focus\n            a11yMenuOptionChosen = false;\n" + head + mid + "                    a11yRestoreFocusAfterMenu(a11yFocusMessage);\n", 1)
-    click = ("                    cell.setOnClickListener(v1 -> {\n"
-             "                        if (selectedObject == null || i >= options.size()) {\n"
-             "                            return;\n"
-             "                        }\n"
-             "                        processSelectedOption(options.get(i));\n")
-    if t.count(click) != 1:
-        print("WARN: ChatActivity menu item click anchor found %d times (menu back focus)" % t.count(click))
-        return
-    t = t.replace(click, click.replace("                        processSelectedOption(options.get(i));\n",
-                                       "                        a11yMenuOptionChosen = true;\n                        processSelectedOption(options.get(i));\n"), 1)
-    anchor = "    public void closeMenu() {\n        closeMenu(true);\n    }\n"
-    if t.count(anchor) != 1:
-        print("WARN: ChatActivity closeMenu anchor not found (menu back focus)")
-        return
-    helper = r'''    private boolean a11yMenuOptionChosen;
-
-    private void a11yRestoreFocusAfterMenu(final MessageObject message) {
-        try {
-            if (message == null || !AndroidUtilities.isAccessibilityScreenReaderEnabled()) {
-                return;
-            }
-            AndroidUtilities.runOnUIThread(() -> {
-                try {
-                    if (scrimPopupWindow != null || chatListView == null) {
-                        return;
-                    }
-                    // an option that opened another screen or a dialog, or put the cursor in the message field, keeps its own focus
-                    if (getParentLayout() == null || getParentLayout().getLastFragment() != this || visibleDialog != null
-                            || (chatActivityEnterView != null && chatActivityEnterView.getEditField() != null && chatActivityEnterView.getEditField().isFocused())) {
-                        return;
-                    }
-                    for (int i = 0; i < chatListView.getChildCount(); i++) {
-                        final View c = chatListView.getChildAt(i);
-                        if (c instanceof ChatMessageCell) {
-                            final MessageObject mo = ((ChatMessageCell) c).getMessageObject();
-                            if (mo != null && mo.getId() == message.getId() && mo.getDialogId() == message.getDialogId()) {
-                                ((ChatMessageCell) c).resetAccessibilityStopFocus();
-                                c.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null);
-                                c.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED);
-                                return;
-                            }
-                        }
-                    }
-                } catch (Throwable e) {
-                    FileLog.e(e);
-                }
-            }, 350);
-        } catch (Throwable e) {
-            FileLog.e(e);
-        }
-    }
-
-'''
-    t = t.replace(anchor, helper + anchor, 1)
-    p.write_text(t, encoding="utf-8")
-    print("ChatActivity menu back focus OK")
-
-
-def patch_stuck_focus_after_longpress() -> None:
-    """After a REAL (touch) long press opens Message options, the popup window swallows the
-    finger-up, leaving stale touch state in RecyclerListView and ChatMessageCell AND leaving
-    TalkBack's AccessibilityNodeProvider cache stuck on a stale virtual node after Back.
-    Fix: completely clear touch/pressed state on both RecyclerListView and all visible cells,
-    refresh the accessibility subtree, and cleanly restore focus to the message cell when
-    dismissed with Back so swiping right/left immediately moves to the next/previous message."""
-    rl = JAVA / "org/telegram/ui/Components/RecyclerListView.java"
-    marker = "a11y-fork: reset touch state after menu v5"
-    if not rl.exists():
-        print("WARN: RecyclerListView.java missing (stuck focus)")
-        return
-    t = rl.read_text(encoding="utf-8")
-    if marker not in t:
-        anchor = "    public void cancelClickRunnables(boolean uncheck) {\n"
-        if t.count(anchor) != 1:
-            print("WARN: RecyclerListView cancelClickRunnables anchor found %d times (stuck focus)" % t.count(anchor))
+    reps = [
+        ("    public void onProgress(long loadedSize, long totalSize, boolean withSize) {\n        if (totalSize <= 0) {\n",
+         "    public void onProgress(long loadedSize, long totalSize, boolean withSize) {\n        if (a11yQuiet() || totalSize <= 0) { // a11y-fork: quiet unless the state-words switch is on\n"),
+        ("    public void onSuccess() {\n",
+         "    public void onSuccess() {\n        if (a11yQuiet()) {\n            reset();\n            return;\n        }\n"),
+        ("    public void setState(Object key, int newState, float progress, long totalSize, boolean withSize) {\n",
+         "    public void setState(Object key, int newState, float progress, long totalSize, boolean withSize) {\n        if (a11yQuiet()) {\n            return;\n        }\n"),
+        ("    private boolean isRead() {\n",
+         "    private static boolean a11yQuiet() {\n        try {\n            return !org.telegram.messenger.A11yConfig.getAnnounceDownloadState();\n        } catch (Throwable e) {\n            return true;\n        }\n    }\n\n    private boolean isRead() {\n"),
+    ]
+    for old, new in reps:
+        if t.count(old) != 1:
+            print("WARN: AccessibilityTransferAnnouncer anchor not found: %r" % old[:60])
             return
-        method = (
-            "    // " + marker + "\n"
-            "    public void a11yResetTouchState() {\n"
-            "        try {\n"
-            "            cancelClickRunnables(true);\n"
-            "            if (selectChildRunnable != null) {\n"
-            "                AndroidUtilities.cancelRunOnUIThread(selectChildRunnable);\n"
-            "                selectChildRunnable = null;\n"
-            "            }\n"
-            "            long now = android.os.SystemClock.uptimeMillis();\n"
-            "            android.view.MotionEvent a11yCancel = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_CANCEL, 0f, 0f, 0);\n"
-            "            if (currentChildView != null) {\n"
-            "                android.view.View a11yChild = currentChildView;\n"
-            "                try {\n"
-            "                    a11yChild.onTouchEvent(a11yCancel);\n"
-            "                } catch (Throwable ignore) {\n"
-            "                }\n"
-            "                onChildPressed(a11yChild, 0, 0, false);\n"
-            "                currentChildView = null;\n"
-            "                removeSelection(a11yChild, null);\n"
-            "            }\n"
-            "            for (int i = 0; i < getChildCount(); i++) {\n"
-            "                android.view.View ch = getChildAt(i);\n"
-            "                if (ch != null) {\n"
-            "                    try { ch.onTouchEvent(a11yCancel); } catch (Throwable ignore) {}\n"
-            "                    ch.setPressed(false);\n"
-            "                }\n"
-            "            }\n"
-            "            a11yCancel.recycle();\n"
-            "            interceptedByChild = false;\n"
-            "            if (longPressCalled) {\n"
-            "                longPressCalled = false;\n"
-            "                if (onItemLongClickListenerExtended != null) {\n"
-            "                    onItemLongClickListenerExtended.onLongClickRelease();\n"
-            "                }\n"
-            "            }\n"
-            "            selectorRect.setEmpty();\n"
-            "            setPressed(false);\n"
-            "            requestDisallowInterceptTouchEvent(false);\n"
-            "        } catch (Throwable e) {\n"
-            "            FileLog.e(e);\n"
-            "        }\n"
-            "    }\n\n"
-        )
-        t = t.replace(anchor, method + anchor, 1)
-        rl.write_text(t, encoding="utf-8")
-        print("RecyclerListView a11yResetTouchState v5 OK")
-    else:
-        print("RecyclerListView a11yResetTouchState v5 already patched")
+        t = t.replace(old, new, 1)
+    p.write_text(t, encoding="utf-8")
+    print("AccessibilityTransferAnnouncer made quiet unless the state-words switch is on OK")
 
-    ca = JAVA / "org/telegram/ui/ChatActivity.java"
-    if not ca.exists():
-        print("WARN: ChatActivity.java missing (stuck focus)")
+
+def _multi_replace_once(path: Path, pairs, marker: str, label: str) -> None:
+    """Apply several exact replacements to one file: all of them or none (each anchor must occur exactly once)."""
+    if not path.exists():
+        print("%s not present -- nothing to do (%s)" % (path.name, label))
         return
-    c = ca.read_text(encoding="utf-8")
-    if marker in c:
-        print("ChatActivity stuck-focus reset v5 already patched")
+    t = path.read_text(encoding="utf-8")
+    if marker in t:
+        print("%s already patched" % label)
         return
+    for old, _new in pairs:
+        if t.count(old) != 1:
+            print("WARN: %s anchor found %d times in %s: %r" % (label, t.count(old), path.name, old[:70]))
+            return
+    for old, new in pairs:
+        t = t.replace(old, new, 1)
+    path.write_text(t, encoding="utf-8")
+    print("%s OK" % label)
 
-    head = ("            scrimPopupWindow = new ActionBarPopupWindow(scrimPopupContainerLayout, LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT) {\n"
-            "                @Override\n"
-            "                public void dismiss() {\n"
-            "                    super.dismiss();\n"
-            "                    if (scrimPopupWindow != this) {\n"
-            "                        return;\n"
-            "                    }\n")
-    if c.count(head) == 1:
-        c = c.replace(
-            head,
-            "            a11yFocusTargetMsg = selectedObject; // " + marker + "\n"
-            "            a11yMenuOptionPicked = false;\n"
-            "            if (chatListView != null) { chatListView.a11yResetTouchState(); }\n"
-            + head,
-            1
-        )
 
-    click_anchor = ("                    cell.setOnClickListener(v1 -> {\n"
-                    "                        if (selectedObject == null || i >= options.size()) {\n"
-                    "                            return;\n"
-                    "                        }\n"
-                    "                        processSelectedOption(options.get(i));\n")
-    if c.count(click_anchor) == 1:
-        c = c.replace(
-            click_anchor,
-            click_anchor.replace(
-                "                        processSelectedOption(options.get(i));\n",
-                "                        a11yMenuOptionPicked = true;\n                        processSelectedOption(options.get(i));\n"
-            ),
-            1
-        )
+def patch_remove_mehran_progress_percent() -> None:
+    """The fork patch speaks the percentage (and 'x of y MB') of every download and upload: as the progress
+    changes, and inside what a message says. Our own RadialProgress already announces progress well, so the fork's
+    percentage is removed. The plain words (Downloading / Sending / Downloaded / Not downloaded) are kept: they stay
+    behind the existing 'Downloaded / not downloaded status' switch."""
+    marker = "a11y-fork: no progress percent"
+    cmc = JAVA / "org/telegram/ui/Cells/ChatMessageCell.java"
+    _multi_replace_once(cmc, [
+        ("    private void announceTransferProgress(boolean sending, long loadedSize, long totalSize) {\n",
+         "    private void announceTransferProgress(boolean sending, long loadedSize, long totalSize) {\n"
+         "        if (true) { // " + marker + ": our own RadialProgress announces it\n"
+         "            return;\n"
+         "        }\n"),
+        ("        sb.append(\" \").append(percent).append(\"%\");\n"
+         "        if (totalSize > 0) {\n"
+         "            sb.append(\", \").append(formatString(R.string.AccDescrTransferredSize, AndroidUtilities.formatFileSize(loadedSize), AndroidUtilities.formatFileSize(totalSize)));\n"
+         "        }\n",
+         "        // " + marker + ": only the word (Downloading / Sending), no percentage and no size\n"),
+    ], marker, "ChatMessageCell fork progress percent removed")
+    ata = JAVA / "org/telegram/ui/Components/AccessibilityTransferAnnouncer.java"
+    _multi_replace_once(ata, [
+        ("    public void onProgress(long loadedSize, long totalSize, boolean withSize) {\n",
+         "    public void onProgress(long loadedSize, long totalSize, boolean withSize) {\n"
+         "        if (true) { // " + marker + "\n"
+         "            return;\n"
+         "        }\n"),
+        ("        if (sameFile && newState == state && (newState != STATE_DOWNLOADING || step == stateStep || now - stateTime < MIN_INTERVAL)) {\n",
+         "        if (sameFile && newState == state) { // " + marker + ": no re-announcing while the percentage moves\n"),
+        ("        if (withSize && totalSize > 0) {\n"
+         "            return LocaleController.getString(R.string.Downloading) + \" \" + percent + \"%, \"\n"
+         "                + LocaleController.formatString(R.string.OfS, AndroidUtilities.formatFileSize(loadedSize), AndroidUtilities.formatFileSize(totalSize));\n"
+         "        }\n"
+         "        return LocaleController.getString(R.string.Downloading) + \" \" + percent + \"%\";\n",
+         "        return LocaleController.getString(R.string.Downloading); // " + marker + "\n"),
+    ], marker, "AccessibilityTransferAnnouncer progress percent removed")
 
-    close_anchor = "    public void closeMenu() {\n        closeMenu(true);\n    }\n"
-    if c.count(close_anchor) == 1 and "private MessageObject a11yFocusTargetMsg;" not in c:
-        helper_methods = (
-            "    private boolean a11yMenuOptionPicked;\n"
-            "    private MessageObject a11yFocusTargetMsg;\n\n"
-            "    private void a11yRestoreTalkBackAfterMenuDismiss() {\n"
-            "        try {\n"
-            "            final MessageObject targetMsg = a11yFocusTargetMsg;\n"
-            "            if (!org.telegram.messenger.AndroidUtilities.isAccessibilityScreenReaderEnabled() || chatListView == null) {\n"
-            "                return;\n"
-            "            }\n"
-            "            chatListView.a11yResetTouchState();\n"
-            "            for (int i = 0; i < chatListView.getChildCount(); i++) {\n"
-            "                android.view.View ch = chatListView.getChildAt(i);\n"
-            "                if (ch instanceof ChatMessageCell) {\n"
-            "                    ((ChatMessageCell) ch).resetPressedLink(-1);\n"
-            "                    ch.invalidate();\n"
-            "                }\n"
-            "            }\n"
-            "            if (a11yMenuOptionPicked || targetMsg == null) {\n"
-            "                return;\n"
-            "            }\n"
-            "            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {\n"
-            "                try {\n"
-            "                    if (scrimPopupWindow != null || chatListView == null || a11yMenuOptionPicked || visibleDialog != null) {\n"
-            "                        return;\n"
-            "                    }\n"
-            "                    chatListView.a11yResetTouchState();\n"
-            "                    chatListView.setImportantForAccessibility(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_YES);\n"
-            "                    for (int i = 0; i < chatListView.getChildCount(); i++) {\n"
-            "                        final android.view.View cellView = chatListView.getChildAt(i);\n"
-            "                        if (cellView instanceof ChatMessageCell) {\n"
-            "                            final MessageObject mo = ((ChatMessageCell) cellView).getMessageObject();\n"
-            "                            if (mo != null && mo.getId() == targetMsg.getId() && mo.getDialogId() == targetMsg.getDialogId()) {\n"
-            "                                cellView.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);\n"
-            "                                cellView.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null);\n"
-            "                                return;\n"
-            "                            }\n"
-            "                        }\n"
-            "                    }\n"
-            "                } catch (Throwable ignore) {\n"
-            "                }\n"
-            "            }, 180);\n"
-            "        } catch (Throwable ignore) {\n"
-            "        }\n"
-            "    }\n\n"
-        )
-        c = c.replace(close_anchor, helper_methods + close_anchor, 1)
 
-    anchor = ("                    scrimPopupWindowItems = null;\n"
-              "                    chatLayoutManager.setCanScrollVertically(true);\n")
-    n = c.count(anchor)
-    if n < 1:
-        print("WARN: ChatActivity message-menu dismiss anchor not found (stuck focus)")
-        return
-    add = (
-        "                    // " + marker + "\n"
-        "                    a11yRestoreTalkBackAfterMenuDismiss();\n"
-    )
-    c = c.replace(anchor, anchor + add)
-    ca.write_text(c, encoding="utf-8")
-    print("ChatActivity stuck-focus reset v5 OK (%d menu dismiss sites)" % n)
+def patch_row_click_no_clicked_event() -> None:
+    """The newer fork patch makes a screen-reader press on a chat-list row (and a topic row) behave like a
+    finger's press by playing the click AND sending TYPE_VIEW_CLICKED. TalkBack answers that event by speaking the
+    whole row again, so after a tap the preview was read to its end and then the unread message was read once more
+    inside the chat. The older fork patch sent no such event. Keep the click sound, drop the event."""
+    rl = JAVA / "org/telegram/ui/Components/RecyclerListView.java"
+    _gate_once(
+        rl,
+        "        item.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_CLICKED);\n"
+        "        if (onItemClickListener != null) {\n"
+        "            onItemClickListener.onItemClick(item, position);\n"
+        "        } else if (onItemClickListenerExtended != null) {\n"
+        "            onItemClickListenerExtended.onItemClick(item, position, x, y);\n"
+        "        }\n",
+        "        // a11y-fork: no clicked event on a row press (TalkBack read the whole row again after it)\n"
+        "        if (onItemClickListener != null) {\n"
+        "            onItemClickListener.onItemClick(item, position);\n"
+        "        } else if (onItemClickListenerExtended != null) {\n"
+        "            onItemClickListenerExtended.onItemClick(item, position, x, y);\n"
+        "        }\n",
+        "RecyclerListView.clickItem no TYPE_VIEW_CLICKED")
+
+
+def patch_audio_bar_position_refresh() -> None:
+    """The top audio-player bar says how far the music got ("30 seconds of 5 minutes"), but that text is built only
+    when TalkBack asks for the node and the bar sends nothing when playback moves on, so while focus rests on the bar
+    TalkBack keeps the old number. While the bar's title is the focused item, tell TalkBack at most once every 1.5 s
+    that the window content changed (a plain event: it refreshes TalkBack's copy of the node and is not a live region,
+    so it is not spoken)."""
+    fcv = JAVA / "org/telegram/ui/Components/FragmentContextView.java"
+    marker = "a11y-fork: audio bar position refresh"
+    _multi_replace_once(fcv, [
+        ("        } else if (id == NotificationCenter.messagePlayingProgressDidChanged) {\n"
+         "            if (currentStyle == STYLE_AUDIO_PLAYER) {\n"
+         "                invalidate();\n"
+         "            }\n"
+         "        }\n"
+         "    }\n",
+         "        } else if (id == NotificationCenter.messagePlayingProgressDidChanged) {\n"
+         "            if (currentStyle == STYLE_AUDIO_PLAYER) {\n"
+         "                invalidate();\n"
+         "                a11yRefreshPlaybackPosition(); // " + marker + "\n"
+         "            }\n"
+         "        }\n"
+         "    }\n"
+         "\n"
+         "    // " + marker + "\n"
+         "    private long a11yLastPositionRefresh;\n"
+         "\n"
+         "    private void a11yRefreshPlaybackPosition() {\n"
+         "        try {\n"
+         "            if (!org.telegram.messenger.AndroidUtilities.isAccessibilityScreenReaderEnabled()) {\n"
+         "                return;\n"
+         "            }\n"
+         "            final long now = android.os.SystemClock.uptimeMillis();\n"
+         "            if (now - a11yLastPositionRefresh < 1500) {\n"
+         "                return;\n"
+         "            }\n"
+         "            // the whole bar is clickable, so TalkBack usually rests on the bar itself and not on the\n"
+         "            // text inside it; look at both\n"
+         "            View focused = isAccessibilityFocused() ? this : null;\n"
+         "            if (focused == null && titleTextView != null) {\n"
+         "                for (int i = 0; i < titleTextView.getChildCount(); i++) {\n"
+         "                    final View child = titleTextView.getChildAt(i);\n"
+         "                    if (child != null && child.isAccessibilityFocused()) {\n"
+         "                        focused = child;\n"
+         "                        break;\n"
+         "                    }\n"
+         "                }\n"
+         "            }\n"
+         "            if (focused == null) {\n"
+         "                return;\n"
+         "            }\n"
+         "            a11yLastPositionRefresh = now;\n"
+         "            // any content-changed event drops the screen reader's cached copy of the bar's nodes, so the\n"
+         "            // next time it reads them the position is built again. Not a live region: nothing is spoken\n"
+         "            final android.view.accessibility.AccessibilityEvent event = android.view.accessibility.AccessibilityEvent.obtain(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);\n"
+         "            event.setContentChangeTypes(android.view.accessibility.AccessibilityEvent.CONTENT_CHANGE_TYPE_SUBTREE);\n"
+         "            focused.sendAccessibilityEventUnchecked(event);\n"
+         "        } catch (Throwable ignore) {\n"
+         "        }\n"
+         "    }\n"),
+    ], marker, "FragmentContextView audio bar position refresh")
 
 
 def patch_longpress_same_menu_path() -> None:
-    """Ensure a long press under TalkBack immediately resets any pending touch state on chatListView
-    before opening Message options."""
+    """A long press under TalkBack opened the Message options with other arguments than the 'Message options'
+    action of TalkBack's actions list (which has never had the stuck-focus problem). An ordinary single message now
+    uses exactly the arguments of that action path; albums and service messages keep what they had."""
     p = JAVA / "org/telegram/ui/ChatActivity.java"
     if not p.exists():
         print("WARN: ChatActivity missing (long press same menu path)")
         return
     t = p.read_text(encoding="utf-8")
-    marker = "a11y-fork: long press same menu path v6"
-    if marker in t:
-        print("ChatActivity long press same menu path v6 already patched")
+    if "a11y-fork: long press same menu path" in t:
+        print("ChatActivity long press same menu path already patched")
         return
     old = ("            if (a11yOn2) {\n"
            "                createMenu(cell, true, false, x, y, true);\n"
@@ -6856,20 +6860,15 @@ def patch_longpress_same_menu_path() -> None:
     if t.count(old) != 1:
         print("WARN: ChatActivity long-press menu call found %d times (long press same menu path)" % t.count(old))
         return
-    new = ("            if (a11yOn2) { // " + marker + "\n"
-           "                try {\n"
-           "                    if (chatListView != null) {\n"
-           "                        chatListView.a11yResetTouchState();\n"
-           "                    }\n"
-           "                    if (cell != null) {\n"
-           "                        cell.resetPressedLink(-1);\n"
-           "                        cell.setPressed(false);\n"
-           "                    }\n"
-           "                } catch (Throwable ignore) {}\n"
-           "                createMenu(cell, true, false, x, y, true);\n"
+    new = ("            if (a11yOn2) { // a11y-fork: long press same menu path\n"
+           "                final MessageObject a11yMo = cell != null ? cell.getMessageObject() : null;\n"
+           "                final boolean a11yGrouped = cell != null && cell.getCurrentMessagesGroup() != null;\n"
+           "                final boolean a11yPlain = a11yMo != null && a11yMo.messageOwner != null && a11yMo.messageOwner.action == null && !a11yGrouped;\n"
+           "                // same arguments as didPressOther (the Message options action of TalkBack's actions list)\n"
+           "                createMenu(cell, true, false, x, y, a11yGrouped || !a11yPlain, !a11yPlain);\n"
            "            } else {\n")
     p.write_text(t.replace(old, new, 1), encoding="utf-8")
-    print("ChatActivity long press uses the same menu path v6 OK")
+    print("ChatActivity long press uses the same menu path as the Message options action OK")
 
 
 def main() -> int:
@@ -6925,7 +6924,7 @@ def main() -> int:
         patch_album_and_user_status_switches()
     patch_admin_tag_switch()
     patch_share_send_button_label()
-    patch_chat_open_sound()
+    # patch_chat_open_sound() is off: the fork plays the click when a chat row is pressed
     patch_message_tap_sound()
     patch_proxy_toolbar_button()
     patch_old_style_menu()
@@ -6934,7 +6933,7 @@ def main() -> int:
     patch_legacy_navigation_drawer()
     patch_old_menu_hides_options()
     patch_old_menu_extras()
-    patch_dialog_row_tap_sound()
+    # patch_dialog_row_tap_sound() is off: the fork plays the click when a chat row is pressed
     patch_voice_share()
     patch_player_seek_buttons()
     patch_sender_options_menu()
@@ -6947,6 +6946,7 @@ def main() -> int:
     patch_more_unlabeled_buttons()
     patch_reply_longpress_opens_options()
     patch_longclickable_flag()
+    patch_stuck_focus_after_longpress()
     if not MEHRAN:
         patch_chat_message_cell_granularity_navigation_legacy()
     patch_stuck_together_bubbles_long_press()
@@ -6957,8 +6957,12 @@ def main() -> int:
     patch_round3_link_long_press_copy()
     patch_round3_download_beep()
     patch_round3_category_folders()
-    patch_round4_menu_back_focus()
-        # MUST stay last: it rewrites English text injected by the patches above
+    patch_mehran_transfer_announcer_quiet()
+    patch_remove_mehran_progress_percent()
+    patch_row_click_no_clicked_event()
+    patch_audio_bar_position_refresh()
+    patch_longpress_same_menu_path()
+    # MUST stay last: it rewrites English text injected by the patches above
     # (Selected / Bot Buttons / Forwarded to Saved / Accessible settings ...).
     patch_a11y_localization()
     print("A11y REAL patches done")
