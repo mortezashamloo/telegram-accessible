@@ -6589,6 +6589,48 @@ def patch_round3_link_long_press_copy() -> None:
     print("ChatActivity link long-press copy + v2ray links in the Links menu OK")
 
 
+def patch_private_seen_loading_text() -> None:
+    """The "seen at ..." row that long-pressing one of your own messages in a private chat adds to the
+    menu (MessagePrivateSeenView) keeps a placeholder text, literally "loading text ", for its shimmer
+    animation, and TalkBack reads it out. While the time is loading the row now says "Loading..."
+    (Telegram's own string, translated), and the placeholder is hidden from TalkBack the rest of the time."""
+    p = JAVA / "org/telegram/ui/Components/MessagePrivateSeenView.java"
+    if not p.exists():
+        print("WARN: MessagePrivateSeenView.java missing (loading text)")
+        return
+    t = p.read_text(encoding="utf-8")
+    marker = "a11y-fork: private seen loading"
+    if marker in t:
+        print("MessagePrivateSeenView loading text already patched")
+        return
+    NO = "android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO"
+    steps = [
+        # (old, new, expected count)
+        ("        loadingView.setText(text);\n",
+         "        loadingView.setText(text);\n"
+         "        loadingView.setContentDescription(LocaleController.getString(R.string.Loading)); // " + marker + "\n", 1),
+        ("            valueLayout.setAlpha(1f);\n            loadingView.setAlpha(0f);\n",
+         "            valueLayout.setAlpha(1f);\n            loadingView.setAlpha(0f);\n"
+         "            loadingView.setImportantForAccessibility(" + NO + "); // a11y-fork: private seen loading\n", 2),
+        ("        valueLayout.setAlpha(0f);\n        loadingView.setAlpha(1f);\n",
+         "        valueLayout.setAlpha(0f);\n        loadingView.setAlpha(1f);\n"
+         "        loadingView.setImportantForAccessibility(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_YES); // a11y-fork: private seen loading\n"
+         "        valueLayout.setImportantForAccessibility(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);\n", 1),
+        ("            valueLayout.animate().alpha(1f)",
+         "            loadingView.setImportantForAccessibility(" + NO + "); // a11y-fork: private seen loading\n"
+         "            valueLayout.setImportantForAccessibility(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);\n"
+         "            valueLayout.animate().alpha(1f)", 1),
+    ]
+    for old, new, count in steps:
+        if t.count(old) != count:
+            print("WARN: MessagePrivateSeenView anchor found %d times, expected %d (loading text)" % (t.count(old), count))
+            return
+    for old, new, count in steps:
+        t = t.replace(old, new)
+    p.write_text(t, encoding="utf-8")
+    print("MessagePrivateSeenView loading text OK")
+
+
 def patch_round3_download_beep() -> None:
     """Beep when a download the user started finishes (FileLoader; wherever the focus is). Setting, default OFF."""
     p = JAVA / "org/telegram/messenger/FileLoader.java"
@@ -6988,6 +7030,7 @@ def main() -> int:
     patch_round3_media_tab_counts()
     patch_round3_link_long_press_copy()
     patch_round3_download_beep()
+    patch_private_seen_loading_text()
     patch_round3_category_folders()
     patch_mehran_transfer_announcer_quiet()
     patch_remove_mehran_progress_percent()
