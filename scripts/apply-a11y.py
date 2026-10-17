@@ -845,8 +845,13 @@ def patch_app_icon() -> None:
     n_png = n_xml = n_notif = 0
     warned = False
 
-    for d in dens:
-        folder = RES / ("mipmap-%s" % d)
+    # the library module, plus the standalone module that carries its own legacy ic_launcher_sa.png
+    res_roots = [RES]
+    sa_res = ROOT.parent / "TMessagesProj_AppStandalone/src/main/res"
+    if sa_res.is_dir():
+        res_roots.append(sa_res)
+    folders = [(d, root / ("mipmap-%s" % d)) for root in res_roots for d in dens]
+    for d, folder in folders:
         if not folder.is_dir():
             continue
         for f in sorted(folder.glob("*.png")):
