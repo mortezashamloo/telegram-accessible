@@ -8945,6 +8945,56 @@ def patch_longpress_same_menu_path() -> None:
     print("ChatActivity long press uses the same menu path as the Message options action OK")
 
 
+def patch_remove_mehran_reaction_actions() -> None:
+    """Take the fork's per-reaction TalkBack actions ("React with ...", "Remove reaction ...") out again.
+
+    The fork lists one custom action for every reaction already on a message, in the swipe-down
+    actions and in TalkBack's Actions menu. Our own Reactions item in Message options does this job,
+    so those actions are removed: both the place where they are offered (ChatMessageCell and
+    ChatActionCell) and the place where they are handled. Reading the reactions of a message aloud
+    is not touched.
+    """
+    steps = [
+        ("org/telegram/ui/Cells/ChatMessageCell.java", [
+            (re.compile(r"[ \t]*// the reactions come after everything else a message offers:[^\n]*\n(?:[ \t]*//[^\n]*\n)*"
+                        r"[ \t]*if \(reactionsLayoutInBubble != null\) \{\n"
+                        r"[ \t]*reactionsLayoutInBubble\.addAccessibilityActions\(info\);\n"
+                        r"[ \t]*\}\n"), "offered"),
+            (re.compile(r"[ \t]*\} else if \(reactionsLayoutInBubble != null && reactionsLayoutInBubble\.performAccessibilityAction\(action\)\) \{\n"
+                        r"[ \t]*return true;\n"), "handled"),
+        ]),
+        ("org/telegram/ui/Cells/ChatActionCell.java", [
+            (re.compile(r"[ \t]*reactionsLayoutInBubble\.addAccessibilityActions\(info\);\n"), "offered"),
+            (re.compile(r"[ \t]*if \(reactionsLayoutInBubble\.performAccessibilityAction\(action\)\) \{\n"
+                        r"[ \t]*return true;\n"
+                        r"[ \t]*\}\n"), "handled"),
+        ]),
+    ]
+    removed = 0
+    for rel, rules in steps:
+        f = JAVA / rel
+        if not f.exists():
+            print("WARN: %s missing (fork reaction actions)" % rel)
+            continue
+        t = f.read_text(encoding="utf-8")
+        for rx, what in rules:
+            t, n = rx.subn("", t, count=1)
+            removed += n
+        f.write_text(t, encoding="utf-8")
+    left = 0
+    for rel, _ in steps:
+        f = JAVA / rel
+        if f.exists():
+            left += f.read_text(encoding="utf-8").count("reactionsLayoutInBubble.addAccessibilityActions")
+            left += f.read_text(encoding="utf-8").count("reactionsLayoutInBubble.performAccessibilityAction")
+    if left:
+        print("WARN: fork reaction actions: %d reference(s) left" % left)
+    elif removed:
+        print("fork reaction actions removed OK (%d places)" % removed)
+    else:
+        print("fork reaction actions not present (nothing to remove)")
+
+
 def main() -> int:
     if not Path("telegram").is_dir():
         print("ERROR: telegram/ not found (clone DrKLO/Telegram as ./telegram)", file=sys.stderr)
@@ -8952,6 +9002,7 @@ def main() -> int:
     print("Using scripts dir:", SCRIPTS.resolve())
     apply_mehran_patch()
     MEHRAN = Path("telegram/.a11y-mehran-applied").exists()
+    patch_remove_mehran_reaction_actions()
     patch_app_name()
     patch_app_icon()
     install_a11y_config()
