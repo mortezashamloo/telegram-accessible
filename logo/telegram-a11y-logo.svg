@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#45c7ff"/><stop offset="1" stop-color="#1678e8"/></linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="18" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="#000"/>
+  <circle cx="512" cy="440" r="300" fill="#071522" stroke="#1689ff" stroke-width="14"/>
+  <circle cx="512" cy="440" r="260" fill="none" stroke="#123c60" stroke-width="3"/>
+  <path d="M245 427 744 235Q775 223 763 262L675 670Q667 703 638 686L502 586 428 656Q409 674 405 646L414 535 652 322 354 493 260 460Q225 447 245 427Z" fill="url(#blue)" stroke="#8ee1ff" stroke-width="8" stroke-linejoin="round" filter="url(#glow)"/>
+  <path d="M414 535 652 322 470 558 502 586Z" fill="#d8f5ff" opacity=".86"/>
+  <g fill="none" stroke="#f7fbff" stroke-width="13" stroke-linecap="round" opacity=".95">
+    <path d="M292 690q-24 32 0 64"/><path d="M260 672q-43 50 0 100"/>
+    <path d="M732 690q24 32 0 64"/><path d="M764 672q43 50 0 100"/>
+  </g>
+  <text x="512" y="824" font-family="DejaVu Sans, Arial, sans-serif" font-size="54" font-weight="700" letter-spacing="1" text-anchor="middle" fill="#ffffff">MORTEZA SHAMLOO</text>
+  <text x="512" y="883" font-family="DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="600" letter-spacing="8" text-anchor="middle" fill="#4dbbff">TELEGRAM A11Y</text>
+</svg>
