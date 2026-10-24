@@ -5691,6 +5691,35 @@ def patch_voice_bitrate() -> None:
             print("audio.c bitrate OK")
         else:
             print("audio.c already patched")
+    # Telegram 13 records voice messages with a second, newer recorder (AudioCapture ->
+    # AudioRecorderNative). It sets the bitrate on its own encoder, so the old hook above never reached it.
+    if audio.exists():
+        t = audio.read_text(encoding="utf-8", errors="replace")
+        rec_old = "result = opus_encoder_ctl(recorder->encoder, OPUS_SET_BITRATE(bitrate));"
+        rec_new = ("result = opus_encoder_ctl(recorder->encoder, OPUS_SET_BITRATE("
+                   "a11y_record_bitrate > 0 ? a11y_record_bitrate : bitrate)); /* a11y-fork: recorder bitrate */")
+        if rec_new in t:
+            print("audio.c new recorder bitrate already patched")
+        elif t.count(rec_old) == 1 and "a11y_record_bitrate" in t:
+            audio.write_text(t.replace(rec_old, rec_new, 1), encoding="utf-8")
+            print("audio.c new recorder bitrate OK")
+        elif rec_old not in t:
+            print("audio.c has no newer recorder in this Telegram version (nothing to do)")
+        else:
+            print("WARN: audio.c new recorder bitrate anchor found %d times" % t.count(rec_old))
+    cap = JAVA / "org/telegram/utils/recorder/audio/AudioCapture.java"
+    if cap.exists():
+        t = cap.read_text(encoding="utf-8")
+        cap_old = "            encoder = AudioRecorderNative.create(outputFile, SAMPLE_RATE, prefixFile);\n"
+        cap_new = ("            // a11y-fork: hand the chosen voice quality to the native encoder before it is created\n"
+                   "            try { org.telegram.messenger.A11yConfig.applyVoiceBitrateToNative(); } catch (Throwable ignore) {}\n" + cap_old)
+        if "applyVoiceBitrateToNative" in t:
+            print("AudioCapture voice quality already patched")
+        elif t.count(cap_old) == 1:
+            cap.write_text(t.replace(cap_old, cap_new, 1), encoding="utf-8")
+            print("AudioCapture voice quality OK")
+        else:
+            print("WARN: AudioCapture anchor found %d times (voice quality)" % t.count(cap_old))
     mc = JAVA / "org/telegram/messenger/MediaController.java"
     if not mc.exists():
         return
