@@ -11582,7 +11582,26 @@ def main() -> int:
     patch_longpress_same_menu_path()
     # MUST stay last: it rewrites English text injected by the patches above
     # (Selected / Bot Buttons / Forwarded to Saved / Accessible settings ...).
+
+def _ensure_audio_bitrate_declared() -> None:
+    audio_c = ROOT / "jni/audio.c"
+    if not audio_c.exists():
+        return
+    content = audio_c.read_text(encoding="utf-8")
+    if "a11y_record_bitrate" in content and not re.search(r"\b(?:static\s+)?(?:int|jint)\s+a11y_record_bitrate\b", content):
+        if "#include <jni.h>" in content:
+            content = content.replace(
+                "#include <jni.h>",
+                "#include <jni.h>\nstatic int a11y_record_bitrate = 0;",
+                1,
+            )
+        else:
+            content = "static int a11y_record_bitrate = 0;\n" + content
+        audio_c.write_text(content, encoding="utf-8")
+        print("Fixed missing a11y_record_bitrate declaration in jni/audio.c")
+
     patch_a11y_localization()
+    _ensure_audio_bitrate_declared()
     print("A11y REAL patches done")
     return 0
 
