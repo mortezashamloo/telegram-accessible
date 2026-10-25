@@ -4560,6 +4560,10 @@ def _patch_a11y_string_resources() -> None:
         "A11yForwardHereLabel": "Forward here in message options: %s",
         "A11yTabCountsLabel": "Counts on the media tabs of groups and channels: %s",
         "A11yDownloadBeepLabel": "Beep when a download finishes: %s",
+        "A11yBeepOutputLabel": "Beep sound (download finished, recording start): %s",
+        "A11yBeepOutputPickerTitle": "Beep sound",
+        "A11yBeepOutputRingtone": "Ringtone volume (loud, also from the phone speaker)",
+        "A11yBeepOutputTelegram": "Sounds of Telegram itself",
         "A11yLinkCopied": "Link copied",
         "A11yForwardedHere": "Forwarded here",
         "A11yCategoryButton": "Category: %s",
@@ -4644,6 +4648,10 @@ def _patch_a11y_string_resources() -> None:
         "A11yForwardHereLabel": "فوروارد همین‌جا در گزینه‌های پیام: %s",
         "A11yTabCountsLabel": "نمایش تعداد روی تب‌های رسانه‌ی گروه و کانال: %s",
         "A11yDownloadBeepLabel": "بوق پایان دانلود: %s",
+        "A11yBeepOutputLabel": "صدای بوق (پایان دانلود و شروع ضبط): %s",
+        "A11yBeepOutputPickerTitle": "صدای بوق",
+        "A11yBeepOutputRingtone": "صدای زنگ گوشی (Ringtone؛ بلند، از بلندگوی گوشی هم پخش می‌شود)",
+        "A11yBeepOutputTelegram": "صداهای خود تلگرام",
         "A11yLinkCopied": "لینک کپی شد",
         "A11yForwardedHere": "پیام دوباره در همین گفتگو ارسال شد",
         "A11yCategoryButton": "دسته‌بندی: %s",
@@ -5812,7 +5820,7 @@ def patch_recording_beep() -> None:
             } catch (Throwable ignoreVibration) {}
             if (org.telegram.messenger.A11yConfig.getRecordingBeep()) {
                 try {
-                    android.media.ToneGenerator a11yTone = new android.media.ToneGenerator(android.media.AudioManager.STREAM_RING, 90);
+                    android.media.ToneGenerator a11yTone = new android.media.ToneGenerator(org.telegram.messenger.A11yConfig.beepStream(), 90);
                     a11yTone.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 120);
                     new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
                         try { a11yTone.release(); } catch (Throwable ignoreRelease) {}
@@ -10586,7 +10594,7 @@ def patch_round3_a11yconfig() -> None:
             lastDownloadBeepMs = now;
             AndroidUtilities.runOnUIThread(() -> {
                 try {
-                    final android.media.ToneGenerator tone = new android.media.ToneGenerator(android.media.AudioManager.STREAM_RING, 90);
+                    final android.media.ToneGenerator tone = new android.media.ToneGenerator(beepStream(), 90);
                     tone.startTone(android.media.ToneGenerator.TONE_PROP_BEEP2, 200);
                     AndroidUtilities.runOnUIThread(() -> {
                         try {
@@ -11013,6 +11021,115 @@ def patch_round3_download_beep() -> None:
         "                        org.telegram.messenger.A11yConfig.playDownloadDoneBeep(); // a11y-fork: download finished beep (setting)\n"
         "                    }\n",
         "FileLoader download-finished beep")
+
+
+def patch_beep_output() -> None:
+    """Accessible Settings: where the two beeps (download finished, recording start) are played.
+
+    0 = the ringtone stream (as before: loud, and with a headset it also comes out of the phone speaker),
+    1 = the stream Telegram's own in-app sounds use (STREAM_SYSTEM). Default 0, so nothing changes until the
+    user picks the second one.
+    """
+    cfgp = JAVA / "org/telegram/messenger/A11yConfig.java"
+    if not cfgp.exists():
+        print("WARN: A11yConfig.java missing (beep output)")
+        return
+    t = cfgp.read_text(encoding="utf-8")
+    marker = "a11y-fork: beep output"
+    if marker in t:
+        print("A11yConfig beep output already patched")
+        return
+    m = re.search(r"private static java\.util\.ArrayList<String> buildSettingsItems\(\) \{\n(.*?)\n        return items;\n    \}\n", t, re.S)
+    if not m:
+        print("WARN: A11yConfig buildSettingsItems not found (beep output)")
+        return
+    row_index = m.group(1).count("items.add(")
+    row = "        items.add(LocaleController.formatString(R.string.A11yBeepOutputLabel, beepOutputLabel()));"
+    t = t[:m.end(1)] + "\n" + row + t[m.end(1):]
+
+    old = ("                default:\n"
+           "                    return;\n"
+           "            }\n"
+           "            refresh.run();\n")
+    if t.count(old) != 1:
+        print("WARN: A11yConfig settings switch anchor not found (beep output)")
+        return
+    t = t.replace(old, ("                case %d:\n"
+                        "                    showBeepOutputPicker(activity, refresh);\n"
+                        "                    return;\n") % row_index + old, 1)
+
+    anchor = "    private static void showVoiceQualityPicker(final Activity activity, final Runnable onChanged) {\n"
+    if t.count(anchor) != 1:
+        print("WARN: A11yConfig showVoiceQualityPicker anchor not found (beep output)")
+        return
+    code = r"""    // a11y-fork: beep output
+    public static final String PREF_BEEP_OUTPUT = "a11y_beep_output";
+    public static final int BEEP_OUTPUT_RINGTONE = 0;
+    public static final int BEEP_OUTPUT_TELEGRAM = 1;
+
+    /** Where the two beeps are played: 0 = ringtone volume (default, as before), 1 = Telegram's own sounds. */
+    public static int getBeepOutput() {
+        try {
+            final int v = MessagesController.getGlobalMainSettings().getInt(PREF_BEEP_OUTPUT, BEEP_OUTPUT_RINGTONE);
+            return v == BEEP_OUTPUT_TELEGRAM ? BEEP_OUTPUT_TELEGRAM : BEEP_OUTPUT_RINGTONE;
+        } catch (Throwable ignore) {
+            return BEEP_OUTPUT_RINGTONE;
+        }
+    }
+
+    public static void setBeepOutput(int value) {
+        try {
+            MessagesController.getGlobalMainSettings().edit().putInt(PREF_BEEP_OUTPUT, value == BEEP_OUTPUT_TELEGRAM ? BEEP_OUTPUT_TELEGRAM : BEEP_OUTPUT_RINGTONE).apply();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /** The audio stream of the beeps: the ringtone stream, or the stream Telegram's own in-app sounds use. */
+    public static int beepStream() {
+        return getBeepOutput() == BEEP_OUTPUT_TELEGRAM ? android.media.AudioManager.STREAM_SYSTEM : android.media.AudioManager.STREAM_RING;
+    }
+
+    public static String beepOutputLabel() {
+        return getBeepOutput() == BEEP_OUTPUT_TELEGRAM
+                ? LocaleController.getString(R.string.A11yBeepOutputTelegram)
+                : LocaleController.getString(R.string.A11yBeepOutputRingtone);
+    }
+
+    private static void playSampleBeep() {
+        try {
+            final android.media.ToneGenerator tone = new android.media.ToneGenerator(beepStream(), 90);
+            tone.startTone(android.media.ToneGenerator.TONE_PROP_BEEP2, 200);
+            AndroidUtilities.runOnUIThread(() -> {
+                try {
+                    tone.release();
+                } catch (Throwable ignore) {
+                }
+            }, 320);
+        } catch (Throwable ignore) {
+        }
+    }
+
+    private static void showBeepOutputPicker(final Activity activity, final Runnable onChanged) {
+        final String[] labels = new String[]{
+                LocaleController.getString(R.string.A11yBeepOutputRingtone),
+                LocaleController.getString(R.string.A11yBeepOutputTelegram)
+        };
+        a11yShow(a11yBuilder(activity)
+                .setTitle(LocaleController.getString(R.string.A11yBeepOutputPickerTitle))
+                .setSingleChoiceItems(labels, getBeepOutput(), (d, which) -> {
+                    setBeepOutput(which);
+                    d.dismiss();
+                    if (onChanged != null) onChanged.run();
+                    announce(activity, LocaleController.formatString(R.string.A11yBeepOutputLabel, labels[which]));
+                    playSampleBeep(); // let him hear where it comes out now
+                })
+                .setNegativeButton(LocaleController.getString(R.string.A11yCancel), null));
+    }
+
+"""
+    t = t.replace(anchor, code + anchor, 1)
+    cfgp.write_text(t, encoding="utf-8")
+    print("A11yConfig beep output setting OK (row %d)" % row_index)
 
 
 def patch_round3_category_folders() -> None:
@@ -11448,6 +11565,7 @@ def main() -> int:
     patch_round3_media_tab_counts()
     patch_round3_link_long_press_copy()
     patch_round3_download_beep()
+    patch_beep_output()
     patch_private_seen_loading_text()
     patch_round3_category_folders()
     patch_mehran_transfer_announcer_quiet()
