@@ -2,11 +2,37 @@ name: Build APK
 
 on:
   workflow_dispatch:
+    inputs:
+      create_release:
+        type: choice
+        description: 'Create a Release'
+        options:
+          - 'No'
+          - 'Yes'
+        default: 'No'
+        required: true
+      tag_name:
+        type: string
+        description: 'Release Tag (e.g. v1.0.0 - optional)'
+        default: ''
+        required: false
+      release_title:
+        type: string
+        description: 'Release Title (e.g. Telegram Accessible v1.0 - optional)'
+        default: ''
+        required: false
+      release_description:
+        type: string
+        description: 'Release Description (Change Log - optional)'
+        default: ''
+        required: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout this repo
@@ -291,3 +317,14 @@ jobs:
           path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
           retention-days: 14
+
+      - name: Create GitHub Release
+        if: ${{ inputs.create_release == 'Yes' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag_name != '' && inputs.tag_name || format('v{0}', github.run_number) }}
+          name: ${{ inputs.release_title != '' && inputs.release_title || (inputs.tag_name != '' && inputs.tag_name || format('Release v{0}', github.run_number)) }}
+          body: ${{ inputs.release_description != '' && inputs.release_description || 'Automatic build release.' }}
+          draft: false
+          prerelease: false
+          files: ${{ steps.apk.outputs.path }}
