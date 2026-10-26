@@ -53,13 +53,71 @@ OPTION_LINKS_MENU = 206
 OPTION_FORWARD_HERE = 220
 
 
+def _mehran_patch_for_existing_files(patch: Path):
+    """The fork patch without the parts for files that upstream has since removed or renamed.
+
+    A part for a file that does not exist (and is not created by the patch itself) can never apply and used to
+    make the whole patch fail. Returns (path of the cleaned patch, list of skipped file names).
+    """
+    import tempfile
+    data = patch.read_bytes()
+    parts = re.split(rb"(?m)^(?=diff --git )", data)
+    kept, skipped = [], []
+    for part in parts:
+        m = re.match(rb"diff --git a/(\S+) b/(\S+)", part)
+        if not m:
+            kept.append(part)
+            continue
+        rel = m.group(2).decode("utf-8", "replace")
+        if b"\nnew file mode" in part[:600] or Path("telegram", rel).exists():
+            kept.append(part)
+        else:
+            skipped.append(rel)
+    if not skipped:
+        return patch, []
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".patch")
+    tmp.write(b"".join(kept))
+    tmp.close()
+    return Path(tmp.name), skipped
+
+
+def _port_mehran_rejects(rejects):
+    """Redo by hand the hunks of the fork patch that the newest Telegram no longer fits. Returns what is left."""
+    left = []
+    for rej in rejects:
+        rp = Path(rej)
+        target = rp.with_suffix("")
+        done = False
+        if target.name == "WalletActivity.java" and target.exists():
+            # the wallet's two toolbar buttons get names a screen reader can say
+            t = target.read_text(encoding="utf-8")
+            old1 = ("        scanItem = menu.addItem(2, R.drawable.scan_qr);\n"
+                    "        scanItem.setOnClickListener(v -> {\n")
+            new1 = ("        scanItem = menu.addItem(2, R.drawable.scan_qr);\n"
+                    "        scanItem.setContentDescription(LocaleController.getString(R.string.WalletScanQRCode));\n"
+                    "        scanItem.setOnClickListener(v -> {\n")
+            old2 = "        menu.addItem(1, R.drawable.ic_ab_other).setOnClickListener(v -> {\n"
+            new2 = ("        final ActionBarMenuItem moreItem = menu.addItem(1, R.drawable.ic_ab_other);\n"
+                    "        moreItem.setContentDescription(LocaleController.getString(R.string.AccDescrMoreOptions));\n"
+                    "        moreItem.setOnClickListener(v -> {\n")
+            if t.count(old1) == 1 and t.count(old2) == 1:
+                target.write_text(t.replace(old1, new1, 1).replace(old2, new2, 1), encoding="utf-8")
+                done = True
+                print("mehran-a11y.patch: redone by hand for the newest Telegram: WalletActivity toolbar buttons")
+        if done:
+            rp.unlink()
+        else:
+            left.append(rej)
+    return left
+
+
 def apply_mehran_patch() -> None:
     """Apply the bundled accessibility patch of the mehranlatifi83/Telegram fork.
 
     It was produced against upstream 12.10.6 (f2908b14) and touches only
-    TMessagesProj/src/main. If upstream has moved far enough for hunks to no longer
-    apply, this stops the build with a clear message instead of producing an app that
-    silently lacks half of the features.
+    TMessagesProj/src/main. When upstream has moved a little, parts for files that no longer exist are skipped
+    and a few known hunks are redone by hand; if anything else no longer fits, this stops the build with a clear
+    message instead of producing an app that silently lacks half of the features.
     """
     import subprocess
     import os
@@ -74,7 +132,10 @@ def apply_mehran_patch() -> None:
     if marker.exists():
         print("mehran-a11y.patch already applied")
         return
-    patch = patch.resolve()
+    patch, skipped = _mehran_patch_for_existing_files(patch.resolve())
+    if skipped:
+        print("mehran-a11y.patch: %d file(s) no longer exist in this Telegram and are skipped: %s"
+              % (len(skipped), ", ".join(x.rsplit("/", 1)[-1] for x in skipped)))
     chk = subprocess.run(["git", "apply", "--check", "-p1", "--whitespace=nowarn", str(patch)],
                          cwd="telegram", capture_output=True, text=True)
     if chk.returncode == 0:
@@ -85,11 +146,14 @@ def apply_mehran_patch() -> None:
             raise SystemExit("ERROR: mehran-a11y.patch failed to apply")
         print("mehran-a11y.patch applied cleanly (git apply)")
     else:
-        # upstream moved a little: let `patch` apply what it can with fuzz, and refuse on rejects
+        # upstream moved a little: let `patch` apply what it can with fuzz, redo known hunks, refuse on the rest
         r = subprocess.run(["patch", "-p1", "--forward", "-F3", "--no-backup-if-mismatch", "-i", str(patch)],
                            cwd="telegram", capture_output=True, text=True)
         rejects = [str(x) for x in Path("telegram").rglob("*.rej")]
-        if r.returncode != 0 or rejects:
+        had_rejects = bool(rejects)
+        if rejects:
+            rejects = _port_mehran_rejects(rejects)
+        if rejects or (r.returncode != 0 and not had_rejects):
             print(chk.stderr[:3000], file=sys.stderr)
             print(r.stdout[-3000:], file=sys.stderr)
             raise SystemExit(
@@ -1653,16 +1717,20 @@ def patch_voice_bitrate() -> None:
     cap = JAVA / "org/telegram/utils/recorder/audio/AudioCapture.java"
     if cap.exists():
         t = cap.read_text(encoding="utf-8")
-        cap_old = "            encoder = AudioRecorderNative.create(outputFile, SAMPLE_RATE, prefixFile);\n"
-        cap_new = ("            // a11y-fork: hand the chosen voice quality to the native encoder before it is created\n"
-                   "            try { org.telegram.messenger.A11yConfig.applyVoiceBitrateToNative(); } catch (Throwable ignore) {}\n" + cap_old)
+        # the call has had different argument lists in different Telegram versions, so find it by its start
+        cap_rx = re.compile(r"(?m)^([ \t]*)encoder = AudioRecorderNative\.create\(")
+        hook = ("// a11y-fork: hand the chosen voice quality to the native encoder before it is created\n"
+                "%stry { org.telegram.messenger.A11yConfig.applyVoiceBitrateToNative(); } catch (Throwable ignore) {}\n")
         if "applyVoiceBitrateToNative" in t:
             print("AudioCapture voice quality already patched")
-        elif t.count(cap_old) == 1:
-            cap.write_text(t.replace(cap_old, cap_new, 1), encoding="utf-8")
+        elif len(cap_rx.findall(t)) == 1:
+            def _hook(m):
+                ind = m.group(1)
+                return ind + hook % ind + m.group(0)
+            cap.write_text(cap_rx.sub(_hook, t, count=1), encoding="utf-8")
             print("AudioCapture voice quality OK")
         else:
-            print("WARN: AudioCapture anchor found %d times (voice quality)" % t.count(cap_old))
+            print("WARN: AudioCapture anchor found %d times (voice quality)" % len(cap_rx.findall(t)))
     mc = JAVA / "org/telegram/messenger/MediaController.java"
     if not mc.exists():
         return
