@@ -1675,11 +1675,18 @@ def patch_voice_bitrate() -> None:
     if audio.exists():
         t = audio.read_text(encoding="utf-8", errors="replace")
         if "a11y_record_bitrate" not in t:
-            t = t.replace(
-                "const opus_int32 bitrate = OPUS_BITRATE_MAX;",
-                "/* a11y-fork */ opus_int32 a11y_record_bitrate = 32000;\nconst opus_int32 bitrate = OPUS_BITRATE_MAX;",
-                1,
-            )
+            decl = "/* a11y-fork */ opus_int32 a11y_record_bitrate = 32000;\n"
+            # the variable must be declared before the lines that use it. Telegram has changed the line it sits
+            # next to (OPUS_BITRATE_MAX in 12.x, 30 * 1024 in 13.1), so find it by its start, not its value.
+            m = re.search(r"(?m)^const opus_int32 bitrate\s*=[^;]*;", t)
+            if m:
+                t = t[:m.start()] + decl + t[m.start():]
+            else:
+                incs = list(re.finditer(r"(?m)^#include[^\n]*\n", t))
+                if incs:
+                    t = t[:incs[-1].end()] + "\n" + decl + t[incs[-1].end():]
+                else:
+                    t = decl + t
             t = t.replace(
                 "result = opus_encoder_ctl(_encoder, OPUS_SET_BITRATE(bitrate));",
                 "result = opus_encoder_ctl(_encoder, OPUS_SET_BITRATE(a11y_record_bitrate > 0 ? a11y_record_bitrate : bitrate));",
@@ -1714,6 +1721,14 @@ def patch_voice_bitrate() -> None:
             print("audio.c has no newer recorder in this Telegram version (nothing to do)")
         else:
             print("WARN: audio.c new recorder bitrate anchor found %d times" % t.count(rec_old))
+    if audio.exists():
+        t = audio.read_text(encoding="utf-8", errors="replace")
+        d = t.find("opus_int32 a11y_record_bitrate")
+        u = [x.start() for x in re.finditer(r"a11y_record_bitrate", t)]
+        if u and (d < 0 or d > u[0] or t.count("opus_int32 a11y_record_bitrate") != 1):
+            print("WARN: audio.c a11y_record_bitrate is not declared exactly once before its first use (the native build would fail)")
+        else:
+            print("audio.c a11y_record_bitrate declaration check OK")
     cap = JAVA / "org/telegram/utils/recorder/audio/AudioCapture.java"
     if cap.exists():
         t = cap.read_text(encoding="utf-8")
