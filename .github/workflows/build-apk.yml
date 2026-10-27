@@ -230,6 +230,14 @@ jobs:
           done
 
           python3 patches-repo/scripts/apply-a11y.py
+
+          # Save original Gradle files before slim-arm64.py strips armv7, so we can build both arm64 and armv7!
+          for gf in telegram/build.gradle telegram/TMessagesProj/build.gradle telegram/TMessagesProj_App/build.gradle; do
+            if [ -f "$gf" ]; then
+              cp "$gf" "${gf}.orig"
+            fi
+          done
+
           if [ -f "$PWD/patches-repo/scripts/slim-arm64.py" ]; then
             python3 "$PWD/patches-repo/scripts/slim-arm64.py" || true
           fi
@@ -286,11 +294,12 @@ jobs:
           PY
           grep -n "^APP_PACKAGE" telegram/gradle.properties
 
-      - name: Build APK
+      - name: Build ARM64 APK
         working-directory: telegram
         run: |
           set -e
           chmod +x gradlew
+          mkdir -p ../built-apks
           if ./gradlew :TMessagesProj_App:assembleAfatRelease --stacktrace --no-daemon; then
             echo "BUILD_VARIANT=release" >> "$GITHUB_ENV"
           else
@@ -298,22 +307,82 @@ jobs:
             ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace --no-daemon
             echo "BUILD_VARIANT=debug" >> "$GITHUB_ENV"
           fi
+          APK64=$(find . -path "*outputs/apk*" -name "*.apk" | head -n 1)
+          if [ -z "$APK64" ] || [ ! -f "$APK64" ]; then
+            echo "ERROR: no ARM64 APK found"
+            exit 1
+          fi
+          cp "$APK64" ../built-apks/telegram-accessible-arm64.apk
+          echo "Saved ARM64 APK:"
+          ls -lh ../built-apks/telegram-accessible-arm64.apk
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
 
-      - name: Find APK
+      - name: Configure and Build ARMv7 (32-bit) APK
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+          A11Y_KEYSTORE_BASE64: ${{ secrets.A11Y_KEYSTORE_BASE64 }}
+          A11Y_STORE_PASSWORD: ${{ secrets.A11Y_STORE_PASSWORD }}
+          A11Y_KEY_PASSWORD: ${{ secrets.A11Y_KEY_PASSWORD }}
+          A11Y_KEY_ALIAS: ${{ secrets.A11Y_KEY_ALIAS }}
+          A11Y_APP_PACKAGE: com.shamloo.telegram.accessible
+        run: |
+          set -e
+          # Restore original Gradle files and configure abiFilters for armeabi-v7a (32-bit ARMv7)
+          for gf in telegram/build.gradle telegram/TMessagesProj/build.gradle telegram/TMessagesProj_App/build.gradle; do
+            if [ -f "${gf}.orig" ]; then
+              cp "${gf}.orig" "$gf"
+            fi
+          done
+
+          if [ -f "$PWD/patches-repo/scripts/slim-arm64.py" ]; then
+            python3 "$PWD/patches-repo/scripts/slim-arm64.py" || true
+          fi
+
+          # Replace arm64-v8a filter with armeabi-v7a in Gradle files so afat builds pure 32-bit ARMv7
+          python3 - <<'PY'
+          import glob
+          for gf in ["telegram/build.gradle", "telegram/TMessagesProj/build.gradle", "telegram/TMessagesProj_App/build.gradle"]:
+              try:
+                  t = open(gf, encoding="utf-8").read()
+                  t2 = t.replace("arm64-v8a", "armeabi-v7a")
+                  if t != t2:
+                      open(gf, "w", encoding="utf-8").write(t2)
+                      print("Updated ABI filter to armeabi-v7a in", gf)
+              except Exception as e:
+                  print("Warn:", gf, e)
+          PY
+
+          if [ -f "$PWD/patches-repo/scripts/prepare-release-signing.py" ]; then
+            python3 "$PWD/patches-repo/scripts/prepare-release-signing.py"
+          fi
+
+          # Clean previous APK outputs before building ARMv7
+          rm -rf telegram/TMessagesProj_App/build/outputs/apk
+
+          cd telegram
+          if ./gradlew :TMessagesProj_App:assembleAfatRelease --stacktrace --no-daemon; then
+            echo "ARMv7 Release build succeeded"
+          else
+            echo "ARMv7 Release failed — falling back to afatDebug"
+            ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace --no-daemon
+          fi
+          APK32=$(find . -path "*outputs/apk*" -name "*.apk" | head -n 1)
+          if [ -z "$APK32" ] || [ ! -f "$APK32" ]; then
+            echo "ERROR: no ARMv7 APK found"
+            exit 1
+          fi
+          cp "$APK32" ../built-apks/telegram-accessible-armv7.apk
+          echo "Saved ARMv7 APK:"
+          ls -lh ../built-apks/telegram-accessible-armv7.apk
+
+      - name: Verify Built APKs
         id: apk
         run: |
           set -e
-          APK=$(find telegram -path "*outputs/apk*" -name "*.apk" | head -n 1)
-          if [ -z "$APK" ] || [ ! -f "$APK" ]; then
-            echo "ERROR: no APK found"
-            find telegram -name "*.apk" 2>/dev/null | head -20 || true
-            exit 1
-          fi
-          echo "path=$APK" >> "$GITHUB_OUTPUT"
-          echo "Found APK: $APK"
-          ls -lh "$APK"
+          ls -lh built-apks/
+          echo "arm64_path=built-apks/telegram-accessible-arm64.apk" >> "$GITHUB_OUTPUT"
+          echo "armv7_path=built-apks/telegram-accessible-armv7.apk" >> "$GITHUB_OUTPUT"
 
       - name: Prepare Keystore File for Artifact
         if: always()
@@ -337,15 +406,23 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-      - name: Upload APK
+      - name: Upload ARM64 APK
         uses: actions/upload-artifact@v4
         with:
           name: telegram-accessible-arm64
-          path: ${{ steps.apk.outputs.path }}
+          path: ${{ steps.apk.outputs.arm64_path }}
           if-no-files-found: error
           retention-days: 14
 
-      # Only when create_release = Yes: make the release and attach the APK, no manual upload needed.
+      - name: Upload ARMv7 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-accessible-armv7
+          path: ${{ steps.apk.outputs.armv7_path }}
+          if-no-files-found: error
+          retention-days: 14
+
+      # Only when create_release = Yes: make the release and attach both APKs, no manual upload needed.
       - name: Create GitHub Release
         if: ${{ inputs.create_release == 'Yes' }}
         env:
@@ -353,7 +430,8 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag_name }}
           RELEASE_TITLE: ${{ inputs.release_title }}
           RELEASE_NOTES: ${{ inputs.release_description }}
-          APK_PATH: ${{ steps.apk.outputs.path }}
+          APK64_PATH: ${{ steps.apk.outputs.arm64_path }}
+          APK32_PATH: ${{ steps.apk.outputs.armv7_path }}
         run: |
           set -e
           TAG="$RELEASE_TAG"
@@ -374,9 +452,11 @@ jobs:
             NOTES="$NOTES"$'\n\n'"Note: the release build failed, so this APK is a debug build."
             EXTRA+=(--prerelease)
           fi
-          FILE="telegram-accessible-${TAG}.apk"
-          cp "$APK_PATH" "$FILE"
-          gh release create "$TAG" "$FILE" \
+          FILE64="telegram-accessible-${TAG}-arm64.apk"
+          FILE32="telegram-accessible-${TAG}-armv7.apk"
+          cp "$APK64_PATH" "$FILE64"
+          cp "$APK32_PATH" "$FILE32"
+          gh release create "$TAG" "$FILE64" "$FILE32" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "$TITLE" \
