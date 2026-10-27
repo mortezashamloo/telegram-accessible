@@ -23,7 +23,7 @@ on:
         required: false
       release_description:
         type: string
-        description: 'Release Description (Change Log - optional)'
+        description: 'Release Description (Change Log - optional; type \n for a new line)'
         default: ''
         required: false
 
@@ -39,6 +39,33 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: patches-repo
+
+      # Check the release settings first, so a wrong or already used tag is found now and not after the long build.
+      - name: Check release settings
+        if: ${{ inputs.create_release == 'Yes' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag_name }}
+        run: |
+          set -e
+          TAG="$RELEASE_TAG"
+          if [ -z "$TAG" ]; then
+            TAG="v${GITHUB_RUN_NUMBER}"
+            echo "No tag typed: the tag will be $TAG"
+          fi
+          if ! printf '%s' "$TAG" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._+-]*$'; then
+            echo "ERROR: the tag '$TAG' has characters that are not allowed. Use letters, digits, dot, dash or underscore."
+            exit 1
+          fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "ERROR: a release with the tag '$TAG' already exists. Type another tag, or delete that release first."
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "ERROR: the tag '$TAG' already exists in the repository. Type another tag, or delete that tag first."
+            exit 1
+          fi
+          echo "Release tag '$TAG' is free."
 
       # a11y-fork: cache key based on patch scripts, so a changed
       # apply-a11y.py / patches/* invalidates the Telegram clone cache.
@@ -318,13 +345,43 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # Only when create_release = Yes: make the release and attach the APK, no manual upload needed.
       - name: Create GitHub Release
         if: ${{ inputs.create_release == 'Yes' }}
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.tag_name != '' && inputs.tag_name || format('v{0}', github.run_number) }}
-          name: ${{ inputs.release_title != '' && inputs.release_title || (inputs.tag_name != '' && inputs.tag_name || format('Release v{0}', github.run_number)) }}
-          body: ${{ inputs.release_description != '' && inputs.release_description || 'Automatic build release.' }}
-          draft: false
-          prerelease: false
-          files: ${{ steps.apk.outputs.path }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag_name }}
+          RELEASE_TITLE: ${{ inputs.release_title }}
+          RELEASE_NOTES: ${{ inputs.release_description }}
+          APK_PATH: ${{ steps.apk.outputs.path }}
+        run: |
+          set -e
+          TAG="$RELEASE_TAG"
+          if [ -z "$TAG" ]; then
+            TAG="v${GITHUB_RUN_NUMBER}"
+          fi
+          TITLE="$RELEASE_TITLE"
+          if [ -z "$TITLE" ]; then
+            if [ -n "$RELEASE_TAG" ]; then TITLE="$RELEASE_TAG"; else TITLE="Release v${GITHUB_RUN_NUMBER}"; fi
+          fi
+          # a typed \n becomes a real new line
+          NOTES="${RELEASE_NOTES//\\n/$'\n'}"
+          if [ -z "$NOTES" ]; then
+            NOTES="Automatic build release."
+          fi
+          EXTRA=()
+          if [ "$BUILD_VARIANT" = "debug" ]; then
+            NOTES="$NOTES"$'\n\n'"Note: the release build failed, so this APK is a debug build."
+            EXTRA+=(--prerelease)
+          fi
+          FILE="telegram-accessible-${TAG}.apk"
+          cp "$APK_PATH" "$FILE"
+          gh release create "$TAG" "$FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$TITLE" \
+            --notes "$NOTES" \
+            "${EXTRA[@]}"
+          URL=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
+          echo "Release created: $URL"
+          echo "Release created: $URL" >> "$GITHUB_STEP_SUMMARY"
