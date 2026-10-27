@@ -563,6 +563,7 @@ def _patch_a11y_string_resources() -> None:
         "A11yBeepOutputPickerTitle": "Beep sound",
         "A11yBeepOutputRingtone": "Ringtone volume (loud, also from the phone speaker)",
         "A11yBeepOutputTelegram": "Sounds of Telegram itself",
+        "A11yDownloadCancelled": "Download cancelled",
         "A11yLinkCopied": "Link copied",
         "A11yForwardedHere": "Forwarded here",
         "A11yCategoryButton": "Category: %s",
@@ -651,6 +652,7 @@ def _patch_a11y_string_resources() -> None:
         "A11yBeepOutputPickerTitle": "صدای بوق",
         "A11yBeepOutputRingtone": "صدای زنگ گوشی (Ringtone؛ بلند، از بلندگوی گوشی هم پخش می‌شود)",
         "A11yBeepOutputTelegram": "صداهای خود تلگرام",
+        "A11yDownloadCancelled": "دانلود لغو شد",
         "A11yLinkCopied": "لینک کپی شد",
         "A11yForwardedHere": "پیام دوباره در همین گفتگو ارسال شد",
         "A11yCategoryButton": "دسته‌بندی: %s",
@@ -7150,6 +7152,46 @@ def patch_beep_output() -> None:
     print("A11yConfig beep output setting OK (row %d)" % row_index)
 
 
+def patch_download_cancel_announce() -> None:
+    """Say "Download cancelled" when the user cancels a download: a tap on the downloading file, on its small
+    button, or the TalkBack "stop download" action. All four places set loadingCancelled = true by hand, so each
+    of them gets one call to a new helper. Cancels Telegram does by itself (a cell scrolling away) are not touched."""
+    p = JAVA / "org/telegram/ui/Cells/ChatMessageCell.java"
+    if not p.exists():
+        print("WARN: ChatMessageCell.java missing (download cancel announce)")
+        return
+    t = p.read_text(encoding="utf-8")
+    if "a11yAnnounceDownloadCancelled" in t:
+        print("ChatMessageCell download cancel announce already patched")
+        return
+    rx = re.compile(r"(?m)^([ \t]*)currentMessageObject\.loadingCancelled = true;[ \t]*\n")
+    n = len(rx.findall(t))
+    if n < 1:
+        print("WARN: ChatMessageCell: no 'loadingCancelled = true' found (download cancel announce)")
+        return
+    t = rx.sub(lambda m: m.group(0) + m.group(1) + "a11yAnnounceDownloadCancelled(); // a11y-fork: download cancelled\n", t)
+    anchor = "    private void performMediaDownloadAction() {\n"
+    if t.count(anchor) != 1:
+        print("WARN: ChatMessageCell performMediaDownloadAction anchor not found (download cancel announce)")
+        return
+    helper = """    // a11y-fork: say it when the user cancels a download (a tap on the file, its small button, or the Actions item)
+    private void a11yAnnounceDownloadCancelled() {
+        try {
+            if (!org.telegram.messenger.AndroidUtilities.isAccessibilityScreenReaderEnabled()) {
+                return;
+            }
+            final String text = org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.A11yDownloadCancelled);
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> announceForAccessibility(text), 250);
+        } catch (Throwable ignore) {
+        }
+    }
+
+"""
+    t = t.replace(anchor, helper + anchor, 1)
+    p.write_text(t, encoding="utf-8")
+    print("ChatMessageCell download cancel announce OK (%d places)" % n)
+
+
 def patch_round3_category_folders() -> None:
     """The category dropdown of the chat list also lists the user's own Telegram folders (those made in the
     official app): All, the folders, then the built-in categories. With no folders it is exactly the old list."""
@@ -7584,6 +7626,7 @@ def main() -> int:
     patch_round3_link_long_press_copy()
     patch_round3_download_beep()
     patch_beep_output()
+    patch_download_cancel_announce()
     patch_private_seen_loading_text()
     patch_round3_category_folders()
     patch_mehran_transfer_announcer_quiet()
