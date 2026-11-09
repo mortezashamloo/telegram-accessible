@@ -112,10 +112,10 @@ index adfbb43..b405803 100644
  
      @Override
 diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MediaController.java b/TMessagesProj/src/main/java/org/telegram/messenger/MediaController.java
-index 85c8e84..135cd82 100644
+index c7dd6d0..1604e39 100644
 --- a/TMessagesProj/src/main/java/org/telegram/messenger/MediaController.java
 +++ b/TMessagesProj/src/main/java/org/telegram/messenger/MediaController.java
-@@ -4410,6 +4410,22 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
+@@ -4434,6 +4434,22 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
          return currentSavedMusicList;
      }
  
@@ -139,10 +139,10 @@ index 85c8e84..135cd82 100644
          if (messageObject != null && messageObject.isRepostPreview) {
              return false;
 diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java b/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java
-index ec503d9..ef91670 100644
+index a9f8c4e..faf8883 100644
 --- a/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java
 +++ b/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java
-@@ -10716,6 +10716,36 @@ public class MessageObject {
+@@ -10729,6 +10729,36 @@ public class MessageObject {
          return null;
      }
  
@@ -180,7 +180,7 @@ index ec503d9..ef91670 100644
          return findAnimatedEmojiEmoticon(document, "\uD83D\uDE00");
      }
 diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java b/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java
-index ed4cc2b..8e5f812 100644
+index 5ce58d0..1632a96 100644
 --- a/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java
 +++ b/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java
 @@ -1,5 +1,6 @@
@@ -190,7 +190,7 @@ index ed4cc2b..8e5f812 100644
  import static org.telegram.messenger.AndroidUtilities.dp;
  import static org.telegram.messenger.AndroidUtilities.dpf2;
  import static org.telegram.tgnet.TLObject.hasFlag;
-@@ -806,11 +807,79 @@ public class RichMessageLayout {
+@@ -826,11 +827,79 @@ public class RichMessageLayout {
          block.listChecked = checked;
      }
  
@@ -270,7 +270,7 @@ index ed4cc2b..8e5f812 100644
      private void emitCaption(TL_iv.PageCaption caption, Rect padding, int textFlags) {
          if (caption == null) return;
          final boolean hasText = caption.text != null && !(caption.text instanceof TL_iv.textEmpty);
-@@ -1077,24 +1146,28 @@ public class RichMessageLayout {
+@@ -1097,24 +1166,28 @@ public class RichMessageLayout {
              final RichBlock block = new RichPhotoBlock(this, padding, maxWidth, photo, blocks.isEmpty());
              blocks.add(block);
              emitCaption(photo.caption, padding, textFlags);
@@ -299,7 +299,7 @@ index ed4cc2b..8e5f812 100644
              return block;
          } else if (pageBlock instanceof TL_iv.pageBlockMap) {
              final TL_iv.pageBlockMap map = (TL_iv.pageBlockMap) pageBlock;
-@@ -1601,6 +1674,18 @@ public class RichMessageLayout {
+@@ -1621,6 +1694,18 @@ public class RichMessageLayout {
          }
      }
  
@@ -318,7 +318,7 @@ index ed4cc2b..8e5f812 100644
      private void drawShowMoreButton(Canvas canvas, int contentBottom) {
          final int color = getThemedColor(isOut() ? Theme.key_chat_outPreviewInstantText : Theme.key_chat_inPreviewInstantText);
  
-@@ -1719,6 +1804,22 @@ public class RichMessageLayout {
+@@ -1739,6 +1824,22 @@ public class RichMessageLayout {
      }
  
      public ChatMessageCell getCell() { return cell; }
@@ -341,7 +341,7 @@ index ed4cc2b..8e5f812 100644
      public ChatMessageCell.ChatMessageCellDelegate getDelegate() { return delegate; }
  
      private boolean handleAnchorClick(String url) {
-@@ -3237,6 +3338,50 @@ public class RichMessageLayout {
+@@ -3293,6 +3394,50 @@ public class RichMessageLayout {
              appendText(sb, text, texts);
          }
  
@@ -392,7 +392,7 @@ index ed4cc2b..8e5f812 100644
          private final boolean centered;
          protected int contentPaddingTop;
          protected int contentPaddingBottom;
-@@ -3406,6 +3551,28 @@ public class RichMessageLayout {
+@@ -3462,6 +3607,28 @@ public class RichMessageLayout {
              this.texts = this.author == null ? new Text[] { this.text } : new Text[] { this.text, this.author };
          }
  
@@ -421,7 +421,7 @@ index ed4cc2b..8e5f812 100644
          private int gap() {
              return author != null ? dp(2) : 0;
          }
-@@ -3708,10 +3875,32 @@ public class RichMessageLayout {
+@@ -3764,10 +3931,32 @@ public class RichMessageLayout {
                  if (sb.length() > 0 && sb.charAt(sb.length() - 1) != '\n') {
                      sb.append('\n');
                  }
@@ -455,7 +455,7 @@ index ed4cc2b..8e5f812 100644
          public final boolean rtl;
          private final TextSelectionHelper.TextLayoutBlock[] texts;
  
-@@ -4124,11 +4313,42 @@ public class RichMessageLayout {
+@@ -4180,11 +4369,42 @@ public class RichMessageLayout {
                      if (sb.length() > 0 && sb.charAt(sb.length() - 1) != '\n') {
                          sb.append(", ");
                      }
@@ -499,7 +499,7 @@ index ed4cc2b..8e5f812 100644
          private final TextSelectionHelper.TextLayoutBlock[] textsArr;
  
          private final Text title;
-@@ -4762,6 +4982,38 @@ public class RichMessageLayout {
+@@ -4818,6 +5038,38 @@ public class RichMessageLayout {
          public TornEdge.Params tornParams;
          public Bitmap tornBitmap;
  
@@ -538,7 +538,7 @@ index ed4cc2b..8e5f812 100644
          public RichUnsupportedBlock(RichMessageLayout root, Rect padding, int maxWidth, int index, int level) {
              super(root, padding, maxWidth);
              this.index = index;
-@@ -5061,6 +5313,45 @@ public class RichMessageLayout {
+@@ -5117,6 +5369,45 @@ public class RichMessageLayout {
              }
          }
  
@@ -584,7 +584,7 @@ index ed4cc2b..8e5f812 100644
          private void onButtonLongClick(RichButton button) {
              if (root.delegate != null) {
                  root.delegate.didLongPressBotButton(root.cell, button.pageButton);
-@@ -6412,6 +6703,28 @@ public class RichMessageLayout {
+@@ -6469,6 +6760,28 @@ public class RichMessageLayout {
              appendText(sb, text, texts);
          }
  
@@ -613,7 +613,7 @@ index ed4cc2b..8e5f812 100644
          public int gradientColor;
          public LinearGradient gradient;
          public final Matrix matrix = new Matrix();
-@@ -7046,6 +7359,7 @@ public class RichMessageLayout {
+@@ -7103,6 +7416,7 @@ public class RichMessageLayout {
          }
          @Override public void onProgressUpload(String fileName, long uploadedSize, long totalSize, boolean isEncrypted) {}
          @Override public void onProgressDownload(String fileName, long downloadSize, long totalSize) {
@@ -621,7 +621,7 @@ index ed4cc2b..8e5f812 100644
              if (radialProgress != null) {
                  radialProgress.setProgress(Math.min(1f, totalSize <= 0 ? 0 : downloadSize / (float) totalSize), true);
              }
-@@ -7277,6 +7591,35 @@ public class RichMessageLayout {
+@@ -7334,6 +7648,35 @@ public class RichMessageLayout {
          private Drawable redPinIcon;
          private static Paint mapBgPaint;
  
@@ -657,7 +657,7 @@ index ed4cc2b..8e5f812 100644
          public RichMapBlock(
              RichMessageLayout root,
              Rect padding, int maxWidth,
-@@ -7454,6 +7797,46 @@ public class RichMessageLayout {
+@@ -7511,6 +7854,46 @@ public class RichMessageLayout {
          private boolean buttonPressed;
          private final int observerTag;
  
@@ -704,7 +704,7 @@ index ed4cc2b..8e5f812 100644
          public RichAudioBlock(RichMessageLayout root, Rect padding, int maxWidth, TL_iv.pageBlockAudio block) {
              super(root, padding, maxWidth);
              this.block = block;
-@@ -7765,6 +8148,7 @@ public class RichMessageLayout {
+@@ -7822,6 +8205,7 @@ public class RichMessageLayout {
          }
          @Override public void onProgressUpload(String fileName, long uploadedSize, long totalSize, boolean isEncrypted) {}
          @Override public void onProgressDownload(String fileName, long downloadSize, long totalSize) {
@@ -712,7 +712,7 @@ index ed4cc2b..8e5f812 100644
              radialProgress.setProgress(Math.min(1f, totalSize <= 0 ? 0 : downloadSize / (float) totalSize), true);
              if (buttonState != 3) updateButtonState(true);
          }
-@@ -7795,6 +8179,54 @@ public class RichMessageLayout {
+@@ -7852,6 +8236,54 @@ public class RichMessageLayout {
  
          private static final int MIN_WIDTH_DP = 220;
  
@@ -767,7 +767,7 @@ index ed4cc2b..8e5f812 100644
          public RichDocumentBlock(RichMessageLayout root, Rect padding, int maxWidth, TL_iv.pageBlockDocument block) {
              super(root, padding, maxWidth);
              this.block = block;
-@@ -8016,6 +8448,7 @@ public class RichMessageLayout {
+@@ -8073,6 +8505,7 @@ public class RichMessageLayout {
          @Override public void onSuccessDownload(String fileName) { radialProgress.setProgress(1, true); updateButtonState(true); }
          @Override public void onProgressUpload(String fileName, long uploadedSize, long totalSize, boolean isEncrypted) {}
          @Override public void onProgressDownload(String fileName, long downloadSize, long totalSize) {
@@ -775,7 +775,7 @@ index ed4cc2b..8e5f812 100644
              radialProgress.setProgress(totalSize <= 0 ? 0 : Math.min(1f, downloadSize / (float) totalSize), true);
              if (buttonState != 2) updateButtonState(true);
          }
-@@ -8454,6 +8887,7 @@ public class RichMessageLayout {
+@@ -8511,6 +8944,7 @@ public class RichMessageLayout {
          }
          @Override public void onProgressUpload(String fileName, long uploadedSize, long totalSize, boolean isEncrypted) {}
          @Override public void onProgressDownload(String fileName, long downloadSize, long totalSize) {
@@ -783,7 +783,7 @@ index ed4cc2b..8e5f812 100644
              if (radialProgress != null) {
                  radialProgress.setProgress(Math.min(1f, totalSize <= 0 ? 0 : downloadSize / (float) totalSize), true);
              }
-@@ -8847,6 +9281,25 @@ public class RichMessageLayout {
+@@ -8904,6 +9338,25 @@ public class RichMessageLayout {
              out.set(left, top, left + slideWidth, top + slideHeight);
          }
  
@@ -809,7 +809,7 @@ index ed4cc2b..8e5f812 100644
          @Override
          protected boolean onBlockAccessibilityElementClick(int element, View host) {
              if (cells.isEmpty()) return false;
-@@ -9292,6 +9745,71 @@ public class RichMessageLayout {
+@@ -9349,6 +9802,71 @@ public class RichMessageLayout {
  
          public void appendAccessibilityText(SpannableStringBuilder sb) {}
  
@@ -881,7 +881,7 @@ index ed4cc2b..8e5f812 100644
          protected static void appendText(SpannableStringBuilder sb, Text single, Text[] arr) {
              if (single != null && single.layout != null && !TextUtils.isEmpty(single.layout.getText())) {
                  sb.append(withReplacements(single.layout.getText()));
-@@ -9311,6 +9829,7 @@ public class RichMessageLayout {
+@@ -9368,6 +9886,7 @@ public class RichMessageLayout {
              if (!(cs instanceof Spanned)) {
                  return cs;
              }
@@ -889,7 +889,7 @@ index ed4cc2b..8e5f812 100644
              final Spanned spanned = (Spanned) cs;
              final TextSelectionHelper.ReplaceCopyTextSpannable[] spans = spanned.getSpans(0, spanned.length(), TextSelectionHelper.ReplaceCopyTextSpannable.class);
              if (spans == null || spans.length == 0) {
-@@ -9347,7 +9866,27 @@ public class RichMessageLayout {
+@@ -9404,7 +9923,27 @@ public class RichMessageLayout {
                  appendAccessibilityText(text);
                  return text.length() > 0 ? text : LocaleController.getString(R.string.AccDescrCheckbox);
              }
@@ -1866,10 +1866,10 @@ index 9932942..3010961 100644
                  .add(R.drawable.menu_link_revoke, getString(R.string.GroupCallCreatedLinkRevoke), revoke)
                  .setOnTopOfScrim()
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/CameraScanActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/CameraScanActivity.java
-index 4e91bfd..103d3f0 100644
+index 96c1ae3..5ca622b 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/CameraScanActivity.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/CameraScanActivity.java
-@@ -670,6 +670,7 @@ public class CameraScanActivity extends BaseFragment {
+@@ -674,6 +674,7 @@ public class CameraScanActivity extends BaseFragment {
                  galleryButton.setImageResource(R.drawable.qr_gallery);
                  galleryButton.setBackgroundDrawable(Theme.createSelectorDrawableFromDrawables(Theme.createCircleDrawable(dp(60), 0x22ffffff), Theme.createCircleDrawable(dp(60), 0x44ffffff)));
                  viewGroup.addView(galleryButton);
@@ -1877,7 +1877,7 @@ index 4e91bfd..103d3f0 100644
                  galleryButton.setOnClickListener(currentImage -> {
                      if (getParentActivity() == null) {
                          return;
-@@ -732,6 +733,7 @@ public class CameraScanActivity extends BaseFragment {
+@@ -736,6 +737,7 @@ public class CameraScanActivity extends BaseFragment {
              flashButton.setImageResource(R.drawable.qr_flashlight);
              flashButton.setBackgroundDrawable(Theme.createCircleDrawable(dp(60), 0x22ffffff));
              viewGroup.addView(flashButton);
@@ -2172,10 +2172,10 @@ index 1392f2c..37786c4 100644
  
      public void setInvalidateColors(boolean invalidate) {
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java b/TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java
-index 6b45401..9d1f2b9 100644
+index bc0affb..18d1ec1 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java
-@@ -186,6 +186,7 @@ import org.telegram.ui.Components.MotionBackgroundDrawable;
+@@ -187,6 +187,7 @@ import org.telegram.ui.Components.MotionBackgroundDrawable;
  import org.telegram.ui.Components.MsgClockDrawable;
  import org.telegram.ui.Components.PostRunnableHolder;
  import org.telegram.ui.Components.Premium.boosts.BoostCounterSpan;
@@ -2183,7 +2183,7 @@ index 6b45401..9d1f2b9 100644
  import org.telegram.ui.Components.Premium.boosts.cells.msg.GiveawayMessageCell;
  import org.telegram.ui.Components.Premium.boosts.cells.msg.GiveawayResultsMessageCell;
  import org.telegram.ui.Components.QuoteHighlight;
-@@ -218,6 +219,7 @@ import org.telegram.ui.Components.URLSpanBotCommand;
+@@ -219,6 +220,7 @@ import org.telegram.ui.Components.URLSpanBotCommand;
  import org.telegram.ui.Components.URLSpanBrowser;
  import org.telegram.ui.Components.URLSpanMono;
  import org.telegram.ui.Components.URLSpanNoUnderline;
@@ -2191,7 +2191,7 @@ index 6b45401..9d1f2b9 100644
  import org.telegram.ui.Components.VectorAvatarThumbDrawable;
  import org.telegram.ui.Components.VideoForwardDrawable;
  import org.telegram.ui.Components.AvatarsListDrawable;
-@@ -575,6 +577,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -576,6 +578,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          default void didPressUserAvatar(ChatMessageCell cell, TLRPC.User user, float touchX, float touchY, boolean asForward) {
          }
  
@@ -2203,7 +2203,7 @@ index 6b45401..9d1f2b9 100644
          default boolean didLongPressUserAvatar(ChatMessageCell cell, TLRPC.User user, float touchX, float touchY) {
              return false;
          }
-@@ -783,6 +790,15 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -784,6 +791,15 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
              return false;
          }
  
@@ -2219,7 +2219,7 @@ index 6b45401..9d1f2b9 100644
          default void videoTimerReached() {
          }
  
-@@ -956,6 +972,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -957,6 +973,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          private Text author;
          public AnimatedEmojiSpan.EmojiGroupedSpans animatedEmoji;
          private TLRPC.PollAnswer answer;
@@ -2227,7 +2227,7 @@ index 6b45401..9d1f2b9 100644
          private TLRPC.TodoItem task;
          private boolean translated;
          public int selectorDrawableColor;
-@@ -1250,12 +1267,24 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -1251,12 +1268,24 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
      private final MaskDrawable[] selectorMaskDrawable = new MaskDrawable[2];
      private int[] selectorDrawableMaskType = new int[2];
      private RectF instantButtonRect = new RectF();
@@ -2252,7 +2252,7 @@ index 6b45401..9d1f2b9 100644
      private boolean wasTranscriptionOpen;
      private Path instantLinkArrowPath;
      private Paint instantLinkArrowPaint;
-@@ -1784,6 +1813,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -1785,6 +1814,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
  
      private TLRPC.User currentForwardUser;
      private TLRPC.User currentViaBotUser;
@@ -2261,7 +2261,7 @@ index 6b45401..9d1f2b9 100644
      private TLRPC.Chat currentForwardChannel;
      private String currentForwardName;
      private String currentForwardNameString;
-@@ -3210,18 +3241,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -3211,18 +3242,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                              delegate.didPressImage(this, lastTouchX, lastTouchY, true);
                          }
                      } else if (currentMessageObject != null && !currentMessageObject.preview) {
@@ -2281,7 +2281,7 @@ index 6b45401..9d1f2b9 100644
                      }
                      playSoundEffect(SoundEffectConstants.CLICK);
                      if (selectorDrawable[0] != null) {
-@@ -3734,46 +3754,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -3735,46 +3755,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                  if (pressedVoteIsMedia) {
                      PollButton button = pollButtons.get(pressedVoteButton);
                      didClickedPollImage(this, button.pollButtonDrawable.getImageReceiver(), button.answer, button.answer.media, event.getX(), event.getY(), button.answer.unshuffled_index);
@@ -2329,7 +2329,7 @@ index 6b45401..9d1f2b9 100644
                  }
                  pressedVoteButton = -1;
                  invalidate();
-@@ -3788,6 +3770,113 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -3789,6 +3771,113 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          return result;
      }
  
@@ -2443,7 +2443,7 @@ index 6b45401..9d1f2b9 100644
      public void didPressVoteHint() {
          /*
          if (delegate != null) {
-@@ -3800,6 +3889,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -3801,6 +3890,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
              if (delegate != null) {
                  delegate.forceUpdate(this, true);
              }
@@ -2455,7 +2455,7 @@ index 6b45401..9d1f2b9 100644
          }
      }
  
-@@ -3828,33 +3922,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -3829,33 +3923,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
              if (instantPressed) {
                  if (delegate != null) {
                      if (lastPoll != null) {
@@ -2490,7 +2490,7 @@ index 6b45401..9d1f2b9 100644
                      } else {
                          delegate.didPressInstantButton(this, drawInstantViewType);
                      }
-@@ -5988,6 +6056,277 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -5989,6 +6057,277 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
      }
  
  
@@ -2768,7 +2768,7 @@ index 6b45401..9d1f2b9 100644
      private void didClickedPollImage(ChatMessageCell cell, ImageReceiver imageReceiver, TLRPC.PollAnswer answer, TLRPC.MessageMedia media, float x, float y, int unshuffledIndex) {
          /*if (unshuffledIndex == PollAttachedMediaPack.INDEX_DESCRIPTION) {
              if (pollContentDrawable != null && pollContentDrawable.getMedia() != null && pollContentDrawable.getMedia().document != null && (pollContentDrawable.isFile() || pollContentDrawable.isMusic())) {
-@@ -6006,6 +6345,218 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -6007,6 +6346,218 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          }
      }
  
@@ -2987,7 +2987,7 @@ index 6b45401..9d1f2b9 100644
      private void didClickedImage() {
          if (currentMessageObject.hasMediaSpoilers() && !currentMessageObject.needDrawBluredPreview() && !currentMessageObject.isMediaSpoilersRevealed) {
              if (delegate != null && currentMessageObject.isSensitive()) {
-@@ -6361,6 +6912,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -6362,6 +6913,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
      @Override
      protected void onDetachedFromWindow() {
          super.onDetachedFromWindow();
@@ -2999,7 +2999,7 @@ index 6b45401..9d1f2b9 100644
  
          if (observersGroup != null) {
              observersGroup.removeAllObservers();
-@@ -6781,6 +7337,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -6782,6 +7338,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          mediaSpoilerRevealProgress = 0f;
          TLRPC.Message newReply = messageObject.hasValidReplyMessageObject() ? messageObject.replyMessageObject.messageOwner : null;
          boolean messageIdChanged = currentMessageObject == null || currentMessageObject.getId() != messageObject.getId();
@@ -3009,7 +3009,7 @@ index 6b45401..9d1f2b9 100644
          boolean messageChanged = currentMessageObject != messageObject || messageObject.forceUpdate || (isRoundVideo && isPlayingRound != (MediaController.getInstance().isPlayingMessage(currentMessageObject) && delegate != null && !delegate.keyboardIsOpened()));
          boolean dataChanged = currentMessageObject != null && currentMessageObject.getId() == messageObject.getId() && lastSendState == MessageObject.MESSAGE_SEND_STATE_EDITING && messageObject.isSent() ||
                  currentMessageObject == messageObject && (isUserDataChanged() || photoNotSet) ||
-@@ -7021,6 +7580,13 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -7022,6 +7581,13 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
              captionAbove = currentMessageObject.messageOwner != null && currentMessageObject.messageOwner.invert_media || groupedMessages != null && groupedMessages.captionAbove;
              isSmallImage = false;
              lastLoadingSizeTotal = 0;
@@ -3023,7 +3023,7 @@ index 6b45401..9d1f2b9 100644
              if (scheduledInvalidate) {
                  AndroidUtilities.cancelRunOnUIThread(invalidateRunnable);
                  scheduledInvalidate = false;
-@@ -11253,6 +11819,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -11254,6 +11820,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
              loadingProgressLayout = null;
              animatingLoadingProgressProgress = 0;
              lastLoadingSizeTotal = 0;
@@ -3031,7 +3031,7 @@ index 6b45401..9d1f2b9 100644
              selectedBackgroundProgress = 0f;
              if (statusDrawableAnimator != null) {
                  statusDrawableAnimator.removeAllListeners();
-@@ -11708,6 +12275,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -11709,6 +12276,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                                  button.pollButtonDrawable.setVotersVisible(isCouterVisible, prevButton != null && !messageIdChanged);
                                  button.pollButtonDrawable.setVotersCount(answer.voters, prevButton != null && !messageIdChanged);
                                  button.pollButtonDrawable.setRecentVoters(answer.recent_voters, prevButton != null && !messageIdChanged);
@@ -3039,7 +3039,7 @@ index 6b45401..9d1f2b9 100644
  
                                  final float votersCountWidth = button.pollButtonDrawable.getVotersCountTargetWidth();
                                  button.moveTitleByCounter = isTitleRtl && titleLinesCount == 1 && (titleLastLineAvail - dp(10)) > votersCountWidth;
-@@ -12335,23 +12903,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -12336,23 +12904,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
              boolean handled = false;
  
              if (avatarPressed) {
@@ -3064,7 +3064,7 @@ index 6b45401..9d1f2b9 100644
              } else if (sideButtonPressed) {
                  if (pressedSideButton != SIDE_BUTTON_SPONSORED_CLOSE &&
                      pressedSideButton != SIDE_BUTTON_SPONSORED_MORE &&
-@@ -13289,19 +13841,61 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -13311,19 +13863,61 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          }
      }
  
@@ -3138,7 +3138,7 @@ index 6b45401..9d1f2b9 100644
          if (currentMessageObject == null) {
              return;
          }
-@@ -16094,6 +16688,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -16125,6 +16719,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      SpoilerEffect.layoutDrawMaybe(instantViewLayout, canvas);
                      canvas.restore();
                  }
@@ -3148,7 +3148,7 @@ index 6b45401..9d1f2b9 100644
              } else {
                  int instantY = startY + linkPreviewHeight + dp(currentMessageObject.isUnsupported() ? -5 : 10);
                  if (instantButtonLoading != null && !loading && !instantButtonLoading.isDisappeared() && !instantButtonLoading.isDisappearing()) {
-@@ -16108,6 +16705,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -16139,6 +16736,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      instantButtonLoading.resetDisappear();
                  }
                  instantButtonRect.set(linkX, instantY, linkX + instantWidth, instantY + dp(36));
@@ -3156,7 +3156,7 @@ index 6b45401..9d1f2b9 100644
                  float scale = instantButtonBounce.getScale(.02f);
                  boolean scaleRestore = scale != 1;
                  if (scaleRestore) {
-@@ -17243,6 +17841,113 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -17274,6 +17872,113 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          }
      }
  
@@ -3270,7 +3270,7 @@ index 6b45401..9d1f2b9 100644
      private int getIconForCurrentState() {
          if (currentMessageObject == null || currentMessageObject.hasExtendedMedia()) {
              return MediaActionDrawable.ICON_NONE;
-@@ -17374,6 +18079,19 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -17405,6 +18110,19 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
      }
  
      public void updateButtonState(boolean ifSame, boolean animated, boolean fromSet) {
@@ -3290,7 +3290,7 @@ index 6b45401..9d1f2b9 100644
          if (currentMessageObject == null) {
              return;
          }
-@@ -18069,6 +18787,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -18100,6 +18818,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
  
      @Override
      public void onSuccessDownload(String fileName) {
@@ -3298,7 +3298,7 @@ index 6b45401..9d1f2b9 100644
          if (documentAttachType == DOCUMENT_ATTACH_TYPE_STICKER && currentMessageObject.isDice()) {
              DownloadController.getInstance(currentAccount).removeLoadingFileObserver(this);
              setCurrentDiceValue(true);
-@@ -18239,11 +18958,111 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -18270,11 +18989,111 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          }
      }
  
@@ -3410,7 +3410,7 @@ index 6b45401..9d1f2b9 100644
          if (drawVideoImageButton) {
              videoRadialProgress.setProgress(progress, true);
          } else {
-@@ -18290,6 +19109,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -18321,6 +19140,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
              lastLoadingSizeTotal = totalSize;
          }
          createLoadingProgressLayout(uploadedSize, totalSize);
@@ -3418,7 +3418,7 @@ index 6b45401..9d1f2b9 100644
      }
  
      private void createLoadingProgressLayout(TLRPC.Document document) {
-@@ -18808,6 +19628,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -18839,6 +19659,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          }
  
          String viaUsername = null;
@@ -3426,7 +3426,7 @@ index 6b45401..9d1f2b9 100644
          CharSequence viaString = null;
          if (messageObject.isWelcomeMessage() && !messageObject.isWelcomeAnchored() && delegate != null && delegate.getChatMode() == ChatActivity.MODE_DEFAULT && messageObject.messageOwner.from_id != null && messageObject.messageOwner.from_id.user_id != 0) {
              final TLRPC.User botUser = MessagesController.getInstance(currentAccount).getUser(messageObject.messageOwner.from_id.user_id);
-@@ -18961,6 +19782,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -18992,6 +19813,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      color = getThemedColor(currentMessageObject.isOutOwner() ? Theme.key_chat_outViaBotNameText : Theme.key_chat_inViaBotNameText);
                  }
                  String viaBotString = getString(R.string.ViaBot);
@@ -3434,7 +3434,7 @@ index 6b45401..9d1f2b9 100644
                  if (currentNameString.length() > 0) {
                      SpannableStringBuilder stringBuilder = new SpannableStringBuilder();
                      stringBuilder.append(nameStringFinal).append(" ").append(viaBotString).append(" ").append(viaUsername);
-@@ -19764,6 +20586,31 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -19795,6 +20617,31 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          );
      }
  
@@ -3466,7 +3466,7 @@ index 6b45401..9d1f2b9 100644
      private String getAuthorName() {
          if (currentUser != null) {
              return UserObject.getUserName(currentUser);
-@@ -20133,10 +20980,120 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -20164,10 +21011,120 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
      protected void onDraw(Canvas canvas) {
          drawInternal(canvas);
      }
@@ -3587,7 +3587,7 @@ index 6b45401..9d1f2b9 100644
          if (!wasLayout) {
              onLayout(false, getLeft(), getTop(), getRight(), getBottom());
          }
-@@ -25991,6 +26948,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -26022,6 +26979,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                  }
  
                  instantButtonRect.set(textX, instantY, textX + instantWidth, instantY + dp(44));
@@ -3599,7 +3599,7 @@ index 6b45401..9d1f2b9 100644
                  if (selectorDrawable[0] != null && selectorDrawableMaskType[0] == 2) {
                      selectorDrawable[0].setBounds(textX - dp(pollInstantViewTouchesBottom ? 6 : 0), instantY, textX + instantWidth, instantY + dp(44));
                      selectorDrawable[0].draw(canvas);
-@@ -26585,23 +27547,215 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -26616,23 +27578,215 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          return layoutHeight;
      }
  
@@ -3822,7 +3822,7 @@ index 6b45401..9d1f2b9 100644
          } else if (action == R.id.acc_action_msg_options) {
              if (delegate != null) {
                  if (currentMessageObject.type == MessageObject.TYPE_PHONE_CALL) {
-@@ -26610,6 +27764,20 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -26641,6 +27795,20 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      delegate.didPressOther(this, otherX, otherY);
                  }
              }
@@ -3843,7 +3843,7 @@ index 6b45401..9d1f2b9 100644
          } else if (action == R.id.acc_action_open_forwarded_origin) {
              if (delegate != null) {
                  if (currentForwardChannel != null) {
-@@ -26624,18 +27792,25 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -26655,18 +27823,25 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
              if (delegate != null) {
                  delegate.didPressSummarize(this, drawSummaryReply);
              }
@@ -3876,7 +3876,7 @@ index 6b45401..9d1f2b9 100644
                  return true;
              }
          }
-@@ -26664,6 +27839,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -26695,6 +27870,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          int x = (int) getEventX(event);
          int y = (int) getEventY(event);
          if (event.getAction() == MotionEvent.ACTION_HOVER_ENTER || event.getAction() == MotionEvent.ACTION_HOVER_MOVE) {
@@ -3884,7 +3884,7 @@ index 6b45401..9d1f2b9 100644
              for (int i = 0; i < accessibilityVirtualViewBounds.size(); i++) {
                  Rect rect = accessibilityVirtualViewBounds.valueAt(i);
                  if (rect.contains(x, y)) {
-@@ -26677,20 +27853,148 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -26708,20 +27884,148 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
              }
          } else if (event.getAction() == MotionEvent.ACTION_HOVER_EXIT) {
              currentFocusedVirtualView = 0;
@@ -4038,7 +4038,7 @@ index 6b45401..9d1f2b9 100644
      private void sendAccessibilityEventForVirtualView(int viewId, int eventType) {
          sendAccessibilityEventForVirtualView(viewId, eventType, null);
      }
-@@ -27018,9 +28322,94 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27049,9 +28353,94 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          return seekBarWaveform;
      }
  
@@ -4133,7 +4133,7 @@ index 6b45401..9d1f2b9 100644
          public static final int PROFILE = 5000;
          public static final int LINK_IDS_START = 2000;
          public static final int LINK_CAPTION_IDS_START = 3000;
-@@ -27037,6 +28426,12 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27068,6 +28457,12 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
          public static final int CONTACT_VIEW = 491;
          public static final int CONTACT_ADD = 490;
          public static final int CONTACT_MESSAGE = 489;
@@ -4146,7 +4146,7 @@ index 6b45401..9d1f2b9 100644
          private Path linkPath = new Path();
          private RectF rectF = new RectF();
          private Rect rect = new Rect();
-@@ -27091,11 +28486,20 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27122,11 +28517,20 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                  final boolean unread = currentMessageObject != null && currentMessageObject.isOut() && !currentMessageObject.scheduled && currentMessageObject.isUnread();
                  final boolean contentUnread = currentMessageObject != null && currentMessageObject.isContentUnread();
                  final long fileSize = currentMessageObject != null ? currentMessageObject.loadedFileSize : 0;
@@ -4171,7 +4171,7 @@ index 6b45401..9d1f2b9 100644
                          final CharSequence adminText = getAdminAccessibilityText();
                          if (!TextUtils.isEmpty(adminText)) {
                              if (adminLayoutIsTag) {
-@@ -27106,6 +28510,15 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27137,6 +28541,15 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                          }
                          sb.append('\n');
                      }
@@ -4187,7 +4187,7 @@ index 6b45401..9d1f2b9 100644
                      if (drawForwardedName) {
                          for (int a = 0; a < 2; a++) {
                              if (forwardedNameLayout[a] != null && forwardedNameLayout[a].getText() != null) {
-@@ -27120,6 +28533,14 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27151,6 +28564,14 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                              sb.append(formatString(R.string.AccDescrDocumentType, fileName.substring(fileName.lastIndexOf('.') + 1).toUpperCase(Locale.ROOT)));
                          }
                      }
@@ -4202,7 +4202,7 @@ index 6b45401..9d1f2b9 100644
                      if (currentMessageObject.richLayout != null && !currentMessageObject.richLayout.blocks.isEmpty()) {
                          for (RichMessageLayout.RichBlock block : currentMessageObject.richLayout.blocks) {
                              if (!block.isVisible()) {
-@@ -27149,6 +28570,12 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27180,6 +28601,12 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                          }
                      } else if (!TextUtils.isEmpty(currentMessageObject.messageText)) {
                          CharSequence messageText = currentMessageObject.messageText;
@@ -4215,7 +4215,7 @@ index 6b45401..9d1f2b9 100644
                          if (messageText instanceof Spanned) {
                              final Spanned spanned = (Spanned) messageText;
                              CodeHighlighting.Span[] codeSpans = spanned.getSpans(0, spanned.length(), CodeHighlighting.Span.class);
-@@ -27168,17 +28595,49 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27199,17 +28626,49 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                                  messageText = ssb;
                              }
                          }
@@ -4274,7 +4274,7 @@ index 6b45401..9d1f2b9 100644
                      if (currentMessageObject.isMusic()) {
                          sb.append("\n");
                          sb.append(formatString("AccDescrMusicInfo", R.string.AccDescrMusicInfo, currentMessageObject.getMusicAuthor(), currentMessageObject.getMusicTitle()));
-@@ -27194,10 +28653,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27225,10 +28684,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                              sb.append(getString("AccDescrMsgPlayed", R.string.AccDescrMsgPlayed));
                          }
                      }
@@ -4290,7 +4290,7 @@ index 6b45401..9d1f2b9 100644
                          String title;
                          if (pollClosed) {
                              title = getString("FinalResults", R.string.FinalResults);
-@@ -27214,7 +28674,80 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27245,7 +28705,80 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                                  title = getString("AnonymousPoll", R.string.AnonymousPoll);
                              }
                          }
@@ -4371,7 +4371,7 @@ index 6b45401..9d1f2b9 100644
                      }
                      if (documentAttach != null) {
                          if (documentAttachType == DOCUMENT_ATTACH_TYPE_VIDEO) {
-@@ -27226,6 +28759,14 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27257,6 +28790,14 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                              sb.append(AndroidUtilities.formatFileSize(documentAttach.size));
                          }
                      }
@@ -4386,7 +4386,7 @@ index 6b45401..9d1f2b9 100644
                      if (currentMessageObject.isVoiceTranscriptionOpen()) {
                          sb.append("\n");
                          sb.append(currentMessageObject.getVoiceTranscription());
-@@ -27246,11 +28787,13 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27277,11 +28818,13 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                                  sb.append(currentMessageObject.isUnread() ? getString("AccDescrMsgUnread", R.string.AccDescrMsgUnread) : getString("AccDescrMsgRead", R.string.AccDescrMsgRead));
                              }
                          } else if (currentMessageObject.isSending()) {
@@ -4405,7 +4405,7 @@ index 6b45401..9d1f2b9 100644
                              }
                          } else if (currentMessageObject.isSendError()) {
                              sb.append("\n");
-@@ -27267,7 +28810,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27298,7 +28841,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      if (currentMessageObject.messageOwner.reactions != null && currentMessageObject.messageOwner.reactions.results != null) {
                          if (currentMessageObject.messageOwner.reactions.results.size() == 1) {
                              TLRPC.ReactionCount reaction = currentMessageObject.messageOwner.reactions.results.get(0);
@@ -4414,7 +4414,7 @@ index 6b45401..9d1f2b9 100644
                              if (reaction.count == 1) {
                                  sb.append("\n");
                                  boolean isMe = false;
-@@ -27296,7 +28839,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27327,7 +28870,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                              final int count = currentMessageObject.messageOwner.reactions.results.size();
                              for (int i = 0; i < count; ++i) {
                                  TLRPC.ReactionCount reactionCount = currentMessageObject.messageOwner.reactions.results.get(i);
@@ -4423,7 +4423,7 @@ index 6b45401..9d1f2b9 100644
                                  if (reactionCount != null) {
                                      sb.append(emoticon).append(" ").append(reactionCount.count + "");
                                      if (i + 1 < count) {
-@@ -27332,17 +28875,78 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27363,17 +28906,78 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                          };
                          sb.setSpan(underlineSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                      }
@@ -4505,7 +4505,7 @@ index 6b45401..9d1f2b9 100644
  
                  info.setEnabled(true);
                  AccessibilityNodeInfo.CollectionItemInfo itemInfo = info.getCollectionItemInfo();
-@@ -27350,59 +28954,63 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27381,59 +28985,63 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      info.setCollectionItemInfo(AccessibilityNodeInfo.CollectionItemInfo.obtain(itemInfo.getRowIndex(), 1, 0, 1, false));
                  }
                  info.addAction(new AccessibilityNodeInfo.AccessibilityAction(R.id.acc_action_msg_options, getString("AccActionMessageOptions", R.string.AccActionMessageOptions)));
@@ -4600,7 +4600,7 @@ index 6b45401..9d1f2b9 100644
                      }
                      if (currentMessageObject.messageText instanceof Spannable) {
                          Spannable buffer = (Spannable) currentMessageObject.messageText;
-@@ -27410,6 +29018,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27441,6 +29049,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                          i = 0;
                          for (CharacterStyle link : links) {
                              info.addChild(ChatMessageCell.this, LINK_IDS_START + i);
@@ -4608,7 +4608,7 @@ index 6b45401..9d1f2b9 100644
                              i++;
                          }
                      }
-@@ -27419,6 +29028,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27450,6 +29059,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                          i = 0;
                          for (CharacterStyle link : links) {
                              info.addChild(ChatMessageCell.this, LINK_CAPTION_IDS_START + i);
@@ -4616,7 +4616,7 @@ index 6b45401..9d1f2b9 100644
                              i++;
                          }
                      }
-@@ -27426,43 +29036,79 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27457,43 +29067,79 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                  i = 0;
                  for (BotButton button : botButtons) {
                      info.addChild(ChatMessageCell.this, BOT_BUTTONS_START + i);
@@ -4697,7 +4697,7 @@ index 6b45401..9d1f2b9 100644
                  }
                  if (currentMessageObject != null && currentMessageObject.richLayout != null) {
                      final RichMessageLayout richLayout = currentMessageObject.richLayout;
-@@ -27475,16 +29121,73 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27506,16 +29152,73 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                          final int count = block.getAccessibilityElementCount();
                          for (int e = 0; e < count; e++) {
                              info.addChild(ChatMessageCell.this, RICH_MEDIA_START + acc + e);
@@ -4774,7 +4774,7 @@ index 6b45401..9d1f2b9 100644
                  return info;
              } else {
                  AccessibilityNodeInfo info = AccessibilityNodeInfo.obtain();
-@@ -27510,6 +29213,26 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27541,6 +29244,26 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      info.setLongClickable(true);
                      info.addAction(AccessibilityNodeInfo.ACTION_CLICK);
                      info.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);
@@ -4801,7 +4801,7 @@ index 6b45401..9d1f2b9 100644
                  } else if (virtualViewId >= RICH_MEDIA_START) {
                      final int[] localElement = {0};
                      final RichMessageLayout.RichBlock block = resolveRichElement(virtualViewId, localElement);
-@@ -27528,6 +29251,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27559,6 +29282,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      final boolean checkbox = block.isAccessibilityElementCheckbox(localElement[0]);
                      if (checkbox) {
                          info.setClassName("android.widget.CheckBox");
@@ -4810,7 +4810,7 @@ index 6b45401..9d1f2b9 100644
                      } else if (block.isAccessibilityElementText(localElement[0])) {
                          info.setClassName("android.widget.TextView");
                      } else {
-@@ -27543,6 +29268,17 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27574,6 +29299,17 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      if (clickable) {
                          info.addAction(AccessibilityNodeInfo.ACTION_CLICK);
                      }
@@ -4828,7 +4828,7 @@ index 6b45401..9d1f2b9 100644
                  } else if (virtualViewId >= LINK_CAPTION_IDS_START) {
                      if (!(currentMessageObject.caption instanceof Spannable) || captionLayout == null) {
                          return null;
-@@ -27652,18 +29388,72 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27683,18 +29419,72 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      }
                      PollButton button = pollButtons.get(buttonIndex);
                      StringBuilder sb = new StringBuilder(button.title.getText());
@@ -4902,7 +4902,7 @@ index 6b45401..9d1f2b9 100644
  
                      final int y = button.y + namesOffset;
                      final int w = backgroundWidth - dp(76);
-@@ -27679,8 +29469,18 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27710,8 +29500,18 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                  } else if (virtualViewId == POLL_HINT) {
                      info.setClassName("android.widget.Button");
                      info.setEnabled(true);
@@ -4923,7 +4923,7 @@ index 6b45401..9d1f2b9 100644
                      rect.set(pollHintX - dp(8), pollHintY - dp(8), pollHintX + dp(32), pollHintY + dp(32));
                      info.setBoundsInParent(rect);
                      if (accessibilityVirtualViewBounds.get(virtualViewId) == null || !accessibilityVirtualViewBounds.get(virtualViewId).equals(rect)) {
-@@ -27689,6 +29489,64 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27720,6 +29520,64 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      rect.offset(pos[0], pos[1]);
                      info.setBoundsInScreen(rect);
                      info.setClickable(true);
@@ -4988,7 +4988,7 @@ index 6b45401..9d1f2b9 100644
                  } else if (virtualViewId == INSTANT_VIEW) {
                      info.setClassName("android.widget.Button");
                      info.setEnabled(true);
-@@ -27696,7 +29554,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27727,7 +29585,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                          info.setText(instantViewLayout.getText());
                      }
                      info.addAction(AccessibilityNodeInfo.ACTION_CLICK);
@@ -4997,7 +4997,7 @@ index 6b45401..9d1f2b9 100644
                      info.setBoundsInParent(rect);
                      if (accessibilityVirtualViewBounds.get(virtualViewId) == null || !accessibilityVirtualViewBounds.get(virtualViewId).equals(rect)) {
                          accessibilityVirtualViewBounds.put(virtualViewId, new Rect(rect));
-@@ -27774,7 +29632,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27805,7 +29663,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                  } else if (virtualViewId == REPLY) {
                      info.setEnabled(true);
                      StringBuilder sb = new StringBuilder();
@@ -5008,7 +5008,7 @@ index 6b45401..9d1f2b9 100644
                      sb.append(", ");
                      if (replyNameLayout != null) {
                          sb.append(replyNameLayout.getText());
-@@ -27854,8 +29714,24 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27885,8 +29745,24 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      info.setBoundsInScreen(rect);
                      info.setClickable(true);
                  }
@@ -5034,7 +5034,7 @@ index 6b45401..9d1f2b9 100644
                  return info;
              }
          }
-@@ -27866,12 +29742,24 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27897,12 +29773,24 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                  performAccessibilityAction(action, arguments);
              } else {
                  if (action == AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS) {
@@ -5059,7 +5059,7 @@ index 6b45401..9d1f2b9 100644
                      } else if (virtualViewId >= RICH_MEDIA_START) {
                          final int[] localElement = {0};
                          final RichMessageLayout.RichBlock block = resolveRichElement(virtualViewId, localElement);
-@@ -27911,16 +29799,36 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27942,16 +29830,36 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                              return false;
                          }
                          PollButton button = pollButtons.get(buttonIndex);
@@ -5100,7 +5100,7 @@ index 6b45401..9d1f2b9 100644
                              delegate.didPressInstantButton(ChatMessageCell.this, drawInstantViewType);
                          }
                      } else if (virtualViewId == CONTACT) {
-@@ -27944,7 +29852,20 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27975,7 +29883,20 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                              delegate.didPressSideButton(ChatMessageCell.this);
                          }
                      } else if (virtualViewId == REPLY) {
@@ -5122,7 +5122,7 @@ index 6b45401..9d1f2b9 100644
                              delegate.didPressReplyMessage(ChatMessageCell.this, currentMessageObject.getReplyMsgId(), 0, 0, false);
                          }
                      } else if (virtualViewId == FORWARD) {
-@@ -27968,7 +29889,50 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+@@ -27999,7 +29920,50 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                      } else if (virtualViewId == TRANSCRIBE && transcribeButton != null) {
                          transcribeButton.onTap();
                      }
@@ -6978,10 +6978,10 @@ index fe53cfb..9a62690 100644
          if (useHour) return capitalize(format2.format(date));
          return capitalize(format.format(date)) + capitalize(format2.format(date));
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
-index 9dec6be..30407d3 100644
+index 87afb39..0cb6027 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
-@@ -1247,7 +1247,6 @@ public class ChatActivity extends BaseFragment implements
+@@ -1249,7 +1249,6 @@ public class ChatActivity extends BaseFragment implements
      public final static int OPTION_SEND_NOW = 100;
      public final static int OPTION_EDIT_SCHEDULE_TIME = 102;
      public final static int OPTION_SPEED_PROMO = 103;
@@ -6989,7 +6989,7 @@ index 9dec6be..30407d3 100644
      public final static int OPTION_FACT_CHECK = 106;
      public final static int OPTION_EDIT_PRICE = 107;
      public final static int OPTION_GIFT = 108;
-@@ -1761,6 +1760,127 @@ public class ChatActivity extends BaseFragment implements
+@@ -1763,6 +1762,127 @@ public class ChatActivity extends BaseFragment implements
          return chatListView;
      }
  
@@ -7117,7 +7117,7 @@ index 9dec6be..30407d3 100644
      private void startMultiselect(int position) {
          if (isInsideContainer) {
              return;
-@@ -4285,6 +4405,7 @@ public class ChatActivity extends BaseFragment implements
+@@ -4287,6 +4407,7 @@ public class ChatActivity extends BaseFragment implements
  
          if (UserObject.isBotForumWithEditableTopics(currentUser) && chatMode == 0) {
              topicCreateItem = menu.addItem(chat_menu_topic_create, R.drawable.menu_topic_add_30);
@@ -7125,7 +7125,7 @@ index 9dec6be..30407d3 100644
          }
  
          if (currentEncryptedChat == null && (chatMode == 0 || chatMode == MODE_SAVED || chatMode == MODE_SUGGESTIONS) && !isReport()) {
-@@ -4819,6 +4940,66 @@ public class ChatActivity extends BaseFragment implements
+@@ -4821,6 +4942,66 @@ public class ChatActivity extends BaseFragment implements
                  return super.requestChildRectangleOnScreen(child, rect, immediate);
              }
  
@@ -7192,7 +7192,7 @@ index 9dec6be..30407d3 100644
              @Override
              public boolean onInterceptTouchEvent(MotionEvent e) {
                  textSelectionHelper.checkSelectionCancel(e);
-@@ -6442,7 +6623,9 @@ public class ChatActivity extends BaseFragment implements
+@@ -6444,7 +6625,9 @@ public class ChatActivity extends BaseFragment implements
  
              @Override
              public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
@@ -7203,7 +7203,7 @@ index 9dec6be..30407d3 100644
                      return;
                  }
                  super.onInitializeAccessibilityNodeInfo(info);
-@@ -6454,14 +6637,14 @@ public class ChatActivity extends BaseFragment implements
+@@ -6456,14 +6639,14 @@ public class ChatActivity extends BaseFragment implements
  
              @Override
              public AccessibilityNodeInfo createAccessibilityNodeInfo() {
@@ -7220,7 +7220,7 @@ index 9dec6be..30407d3 100644
              chatListView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
          }
          chatListView.setHideIfEmpty(false);
-@@ -16838,12 +17021,65 @@ public class ChatActivity extends BaseFragment implements
+@@ -16973,12 +17156,65 @@ public class ChatActivity extends BaseFragment implements
          return dummyMessageCell.computeHeight(object, groupedMessagesMap.get(object.getGroupId()), withGroupCaption);
      }
  
@@ -7286,7 +7286,7 @@ index 9dec6be..30407d3 100644
              highlightMessageQuoteFirst = false;
              highlightMessageQuoteFirstTime = 0;
              highlightMessageQuote = null;
-@@ -21844,6 +22080,7 @@ public class ChatActivity extends BaseFragment implements
+@@ -22017,6 +22253,7 @@ public class ChatActivity extends BaseFragment implements
          chatWasReset = false;
  
          if (isFirstLoading) {
@@ -7294,7 +7294,7 @@ index 9dec6be..30407d3 100644
              AndroidUtilities.runOnUIThread(() -> {
                  resumeDelayedFragmentAnimation();
  
-@@ -22840,6 +23077,9 @@ public class ChatActivity extends BaseFragment implements
+@@ -23016,6 +23253,9 @@ public class ChatActivity extends BaseFragment implements
                  currentEncryptedChat = chat;
                  updateTopPanel(true);
                  updateSecretStatus();
@@ -7304,7 +7304,7 @@ index 9dec6be..30407d3 100644
                  if (suggestEmojiPanel != null) {
                      suggestEmojiPanel.fireUpdate();
                  }
-@@ -27120,19 +27360,37 @@ public class ChatActivity extends BaseFragment implements
+@@ -27297,19 +27537,37 @@ public class ChatActivity extends BaseFragment implements
          }
      }
  
@@ -7347,7 +7347,7 @@ index 9dec6be..30407d3 100644
              }
          }
      }
-@@ -28297,6 +28555,12 @@ public class ChatActivity extends BaseFragment implements
+@@ -28474,6 +28732,12 @@ public class ChatActivity extends BaseFragment implements
          topPanelLayout.setViewVisible(alertView, true);
          alertNameTextView.setText(name);
          alertTextView.setText(Emoji.replaceEmoji(message.replace('\n', ' '), alertTextView.getPaint().getFontMetricsInt(), false));
@@ -7360,7 +7360,7 @@ index 9dec6be..30407d3 100644
          if (hideAlertViewRunnable != null) {
              AndroidUtilities.cancelRunOnUIThread(hideAlertViewRunnable);
          }
-@@ -29881,6 +30145,7 @@ public class ChatActivity extends BaseFragment implements
+@@ -30058,6 +30322,7 @@ public class ChatActivity extends BaseFragment implements
      public void onResume() {
          super.onResume();
          checkShowBlur(false);
@@ -7368,7 +7368,7 @@ index 9dec6be..30407d3 100644
          activityResumeTime = System.currentTimeMillis();
          if (openImport && getSendMessagesHelper().getImportingHistory(dialog_id) != null) {
              ImportingAlert alert = new ImportingAlert(getParentActivity(), null, this, themeDelegate);
-@@ -31010,12 +31275,6 @@ public class ChatActivity extends BaseFragment implements
+@@ -31191,12 +31456,6 @@ public class ChatActivity extends BaseFragment implements
              final ArrayList<Integer> options = new ArrayList<>();
              View optionsView = null;
  
@@ -7381,7 +7381,7 @@ index 9dec6be..30407d3 100644
              if (!getUserConfig().isPremium() && !getMessagesController().premiumFeaturesBlocked() && message.getDocument() != null && message.getDocument().size >= 150 * 1024 * 1024 && FileLoader.getInstance(currentAccount).isLoadingFile(FileLoader.getAttachFileName(message.getDocument())) && chatMode != MODE_SAVED) {
                  items.add(LocaleController.getString(R.string.PremiumSpeedPromo));
                  options.add(OPTION_SPEED_PROMO);
-@@ -34393,11 +34652,6 @@ public class ChatActivity extends BaseFragment implements
+@@ -34574,11 +34833,6 @@ public class ChatActivity extends BaseFragment implements
                  showDialog(new PremiumFeatureBottomSheet(ChatActivity.this, PremiumPreviewFragment.PREMIUM_FEATURE_DOWNLOAD_SPEED, true));
                  break;
              }
@@ -7393,7 +7393,7 @@ index 9dec6be..30407d3 100644
              case OPTION_FACT_CHECK: {
                  MessageObject msg = selectedObjectGroup != null ? selectedObjectGroup.findPrimaryMessageObject() : selectedObject;
                  FactCheckController.getInstance(currentAccount).openFactCheckEditor(getContext(), getResourceProvider(), msg, false);
-@@ -35006,6 +35260,9 @@ public class ChatActivity extends BaseFragment implements
+@@ -35187,6 +35441,9 @@ public class ChatActivity extends BaseFragment implements
                  cell.setHighlighted(highlightMessageId != Integer.MAX_VALUE && messageObject != null && messageObject.getId() == highlightMessageId);
                  if (highlightMessageId != Integer.MAX_VALUE) {
                      startMessageUnselect();
@@ -7403,7 +7403,7 @@ index 9dec6be..30407d3 100644
                  }
                  if (cell.isHighlighted() && highlightMessageQuote != null) {
                      final long now = System.currentTimeMillis();
-@@ -36877,8 +37134,54 @@ public class ChatActivity extends BaseFragment implements
+@@ -37070,8 +37327,54 @@ public class ChatActivity extends BaseFragment implements
          MediaController.getInstance().resetGoingToShowMessageObject();
      }
  
@@ -7459,7 +7459,7 @@ index 9dec6be..30407d3 100644
              return;
          }
          chatListView.setImportantForAccessibility(mentionContainer != null && mentionContainer.isOpen() || (scrimPopupWindow != null && scrimPopupWindow.isShowing()) ? View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS : View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
-@@ -37854,6 +38157,11 @@ public class ChatActivity extends BaseFragment implements
+@@ -38047,6 +38350,11 @@ public class ChatActivity extends BaseFragment implements
                      messageCell.setMessageObject(message, groupedMessages, pinnedBottom, pinnedTop, firstInChat, lastInChatList);
                      messageCell.setSpoilersSuppressed(chatListView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE);
                      messageCell.setHighlighted(highlightMessageId != Integer.MAX_VALUE && message.getId() == highlightMessageId);
@@ -7471,7 +7471,7 @@ index 9dec6be..30407d3 100644
                      if (messageCell.isHighlighted() && highlightMessageQuote != null) {
                          final long now = System.currentTimeMillis();
                          messageCell.setHighlightedText(highlightMessageQuote, true, highlightMessageQuoteOffset, highlightMessageQuoteFirst || now - highlightMessageQuoteFirstTime < 200);
-@@ -39835,6 +40143,11 @@ public class ChatActivity extends BaseFragment implements
+@@ -40028,6 +40336,11 @@ public class ChatActivity extends BaseFragment implements
              openProfile(user, ChatObject.isForum(currentChat) || isThreadChat());
          }
  
@@ -7483,7 +7483,7 @@ index 9dec6be..30407d3 100644
          @Override
          public boolean didLongPressUserAvatar(ChatMessageCell cell, TLRPC.User user, float touchX, float touchY) {
              if (isAvatarPreviewerEnabled()) {
-@@ -42222,6 +42535,32 @@ public class ChatActivity extends BaseFragment implements
+@@ -42415,6 +42728,32 @@ public class ChatActivity extends BaseFragment implements
              return false;
          }
  
@@ -8027,7 +8027,7 @@ index a5c19a4..99a77d6 100644
      }
  
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java
-index a8f9973..fee6011 100644
+index 16a3823..b09075c 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java
 @@ -585,6 +585,11 @@ public class ChatActivityEnterView extends FrameLayout implements
@@ -8178,7 +8178,7 @@ index a8f9973..fee6011 100644
              @Override
              public boolean onTouchEvent(MotionEvent event) {
                  if (!isSendButtonEnabled()) {
-@@ -3814,7 +3897,10 @@ public class ChatActivityEnterView extends FrameLayout implements
+@@ -3812,7 +3895,10 @@ public class ChatActivityEnterView extends FrameLayout implements
              }
              delegate.didPressSuggestionButton();
          });
@@ -8190,7 +8190,7 @@ index a8f9973..fee6011 100644
      }
  
      private boolean suggestButtonVisible;
-@@ -6180,7 +6266,9 @@ public class ChatActivityEnterView extends FrameLayout implements
+@@ -6178,7 +6264,9 @@ public class ChatActivityEnterView extends FrameLayout implements
              preferences.edit().putBoolean(isChannel ? "currentModeVideoChannel" : "currentModeVideo", visible).apply();
          }
          audioVideoSendButton.setState(isInVideoMode() ? ChatActivityEnterViewAnimatedIconView.State.VIDEO : ChatActivityEnterViewAnimatedIconView.State.VOICE, animated);
@@ -8201,7 +8201,7 @@ index a8f9973..fee6011 100644
          audioVideoButtonContainer.setContentDescription(getString(isInVideoMode() ? R.string.AccDescrVideoMessage : R.string.AccDescrVoiceMessage));
          audioVideoSendButton.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
      }
-@@ -7038,6 +7126,9 @@ public class ChatActivityEnterView extends FrameLayout implements
+@@ -7036,6 +7124,9 @@ public class ChatActivityEnterView extends FrameLayout implements
                      if (recordedAudioPanel != null) {
                          recordedAudioPanel.setVisibility(GONE);
                      }
@@ -8211,7 +8211,7 @@ index a8f9973..fee6011 100644
                      if (messageEditText != null) {
                          messageEditText.requestFocus();
                      }
-@@ -7244,6 +7335,11 @@ public class ChatActivityEnterView extends FrameLayout implements
+@@ -7242,6 +7333,11 @@ public class ChatActivityEnterView extends FrameLayout implements
          if (recordedAudioPanel != null) {
              recordedAudioPanel.setVisibility(GONE);
          }
@@ -8223,7 +8223,7 @@ index a8f9973..fee6011 100644
          isRecordingStateChanged();
      }
  
-@@ -8929,7 +9025,7 @@ public class ChatActivityEnterView extends FrameLayout implements
+@@ -8927,7 +9023,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                  iconChanges.playTogether(ObjectAnimator.ofFloat(controlsView, View.ALPHA, 1));
              }
              if (audioVideoSendButton != null) {
@@ -8232,7 +8232,7 @@ index a8f9973..fee6011 100644
              }
              if (botCommandsMenuButton != null) {
                  iconChanges.playTogether(
-@@ -14297,6 +14393,18 @@ public class ChatActivityEnterView extends FrameLayout implements
+@@ -14302,6 +14398,18 @@ public class ChatActivityEnterView extends FrameLayout implements
  
          public TimerView(Context context) {
              super(context);
@@ -8338,7 +8338,7 @@ index 91e03b7..a1769c8 100644
              if (checkBox.getVisibility() != VISIBLE) {
                  checkBox.setVisibility(VISIBLE);
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatAttachAlertGramLayout.java b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatAttachAlertGramLayout.java
-index d911b67..c5b9730 100644
+index d8f98f1..26bf4ab 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatAttachAlertGramLayout.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatAttachAlertGramLayout.java
 @@ -382,6 +382,7 @@ public class ChatAttachAlertGramLayout extends ChatAttachAlert.AttachAlertLayout
@@ -8528,7 +8528,7 @@ index 102d29a..c2f5da0 100644
                      cell.getCheckBox().setColor(-1, Theme.key_pollCreateIcons, Theme.key_checkboxCheck);
                      // cell.getCheckBox().setCirclePaintProvider(obj -> checkboxPaint);
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatAvatarContainer.java b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatAvatarContainer.java
-index 1238632..9bcf4c1 100644
+index cf71c16..36241f6 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatAvatarContainer.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatAvatarContainer.java
 @@ -1301,12 +1301,59 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
@@ -9752,10 +9752,10 @@ index eebce35..23f06d6 100644
                                  statisticClickRunnable.run();
                                  dismiss();
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Components/Premium/boosts/UserSelectorBottomSheet.java b/TMessagesProj/src/main/java/org/telegram/ui/Components/Premium/boosts/UserSelectorBottomSheet.java
-index 0d9193d..21f1a97 100644
+index 407ed85..e56498e 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Components/Premium/boosts/UserSelectorBottomSheet.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Components/Premium/boosts/UserSelectorBottomSheet.java
-@@ -62,6 +62,7 @@ import org.telegram.ui.Components.BottomSheetWithRecyclerListView;
+@@ -68,6 +68,7 @@ import org.telegram.ui.Components.BottomSheetWithRecyclerListView;
  import org.telegram.ui.Components.Bulletin;
  import org.telegram.ui.Components.BulletinFactory;
  import org.telegram.ui.Components.CheckBox2;
@@ -9763,7 +9763,7 @@ index 0d9193d..21f1a97 100644
  import org.telegram.ui.Components.CombinedDrawable;
  import org.telegram.ui.Components.CubicBezierInterpolator;
  import org.telegram.ui.Components.ItemOptions;
-@@ -371,6 +372,7 @@ public class UserSelectorBottomSheet extends BottomSheetWithRecyclerListView imp
+@@ -378,6 +379,7 @@ public class UserSelectorBottomSheet extends BottomSheetWithRecyclerListView imp
              videoTextView.setText(LocaleController.getString(R.string.ConferenceCallWithVideo));
              videoLayout.addView(videoTextView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL, 9, 0, 0, 0));
              ScaleStateListAnimator.apply(videoLayout, 0.025f, 1.5f);
@@ -10164,6 +10164,19 @@ index ce74c41..5d1ff48 100644
                  }
              };
          }
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Components/ProfileBalanceView.java b/TMessagesProj/src/main/java/org/telegram/ui/Components/ProfileBalanceView.java
+index 7cdc399..b98c859 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/Components/ProfileBalanceView.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/Components/ProfileBalanceView.java
+@@ -49,7 +49,7 @@ public class ProfileBalanceView extends ProfileMusicView {
+     public void setBalance(long nanograms) {
+         final String formatted = balanceFormat.format(new BigDecimal(GramWallet.formatGramsBalance(nanograms, false)));
+         amount = new Text(formatted, 11, AndroidUtilities.bold());
+-        setContentDescription(getString(R.string.StarsBalance) + ": " + formatted);
++        setContentDescription(getString(R.string.StarsBalance) + ": " + GramWallet.formatGramsWithUnit(formatted));
+         invalidate();
+     }
+ 
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Components/Reactions/ReactionsLayoutInBubble.java b/TMessagesProj/src/main/java/org/telegram/ui/Components/Reactions/ReactionsLayoutInBubble.java
 index d4da1d4..6562cc3 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Components/Reactions/ReactionsLayoutInBubble.java
@@ -10776,10 +10789,10 @@ index 0dd0f1a..89a3cb5 100644
                  actionMode.addView(actionModeCloseView, LayoutHelper.createLinear(54, 54, 0f, Gravity.CENTER_VERTICAL));
              }
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Components/ShareAlert.java b/TMessagesProj/src/main/java/org/telegram/ui/Components/ShareAlert.java
-index 3471788..fd490ea 100644
+index 67b7277..ca79fbb 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Components/ShareAlert.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Components/ShareAlert.java
-@@ -1788,6 +1788,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
+@@ -1820,6 +1820,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
              timestampTextView.setText(LocaleController.formatString(R.string.VideoShareAddTimestamp, AndroidUtilities.formatShortDuration(video_timestamp)));
              timestampLayout.addView(timestampTextView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL, 9, 0, 0, 0));
              ScaleStateListAnimator.apply(timestampLayout, 0.025f, 1.5f);
@@ -10800,7 +10813,7 @@ index 5278556..e0ca4ba 100644
              container.addView(closeButton, LayoutHelper.createLinear(36, 36, Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0, 4, 0));
          }
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Components/SharedMediaLayout.java b/TMessagesProj/src/main/java/org/telegram/ui/Components/SharedMediaLayout.java
-index f570f57..38d7fdb 100644
+index efe1b52..990017f 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Components/SharedMediaLayout.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Components/SharedMediaLayout.java
 @@ -1746,6 +1746,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
@@ -12638,10 +12651,10 @@ index 18efa4a..2521d3f 100644
  
          // SeekBar
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java
-index 0c5dc3f..5b5f8b3 100644
+index 48ec85b..7eb5ce1 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java
-@@ -3291,6 +3291,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
+@@ -3292,6 +3292,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
          fragmentSearchField.setPivotY(0);
          if (initialDialogsType == DIALOGS_TYPE_DEFAULT) {
              speedItem = menu.addItem(-47, R.drawable.avd_speed);
@@ -12649,7 +12662,7 @@ index 0c5dc3f..5b5f8b3 100644
              AndroidUtilities.removeFromParent(speedItem);
              speedItem.setOnClickListener(v -> showDialog(new PremiumFeatureBottomSheet(DialogsActivity.this, PremiumPreviewFragment.PREMIUM_FEATURE_DOWNLOAD_SPEED, true)));
  
-@@ -6722,6 +6723,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
+@@ -6724,6 +6725,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
              actionModeCloseView.setImageDrawable(new BackDrawable(true));
              actionModeCloseView.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_actionBarActionModeDefaultIcon), PorterDuff.Mode.MULTIPLY));
              actionModeCloseView.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_actionBarActionModeDefaultSelector)));
@@ -12657,7 +12670,7 @@ index 0c5dc3f..5b5f8b3 100644
              actionModeCloseView.setOnClickListener(v -> hideActionMode(true));
              actionMode.addView(actionModeCloseView, LayoutHelper.createLinear(54, 54, Gravity.CENTER_VERTICAL));
              actionModeViews.add(actionModeCloseView);
-@@ -9124,6 +9126,146 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
+@@ -9126,6 +9128,146 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
          return pinnedCount;
      }
  
@@ -12912,10 +12925,10 @@ index cae3a08..448df62 100644
          try {
              fragmentView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_PRESS, HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING);
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Gifts/GiftMessageBottomSheet.java b/TMessagesProj/src/main/java/org/telegram/ui/Gifts/GiftMessageBottomSheet.java
-index 88fd8ba..3143564 100644
+index a74afa9..e236081 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Gifts/GiftMessageBottomSheet.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Gifts/GiftMessageBottomSheet.java
-@@ -452,6 +452,7 @@ public class GiftMessageBottomSheet extends BottomSheet {
+@@ -453,6 +453,7 @@ public class GiftMessageBottomSheet extends BottomSheet {
          closeButton.setBackground(Blur3Utils.wrapCenteredDrawable(
              Theme.createServiceDrawable(AndroidUtilities.dp(16), closeButton, containerView, getThemedPaint(Theme.key_paint_chatActionBackground)),
              dp(32), dp(32)));
@@ -12985,7 +12998,7 @@ index c37d519..e7fde10 100644
              checkbox.setChecked(!checkbox.isChecked(), true);
              MessagesController.getGlobalMainSettings().edit().putBoolean("callmiconstart", checkbox.isChecked()).apply();
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/LoginActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/LoginActivity.java
-index fd96880..17371c9 100644
+index de2413c..81746fe 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/LoginActivity.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/LoginActivity.java
 @@ -767,6 +767,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
@@ -12996,7 +13009,7 @@ index fd96880..17371c9 100644
          proxyButtonView.setOnClickListener(v -> presentFragment(new ProxyListActivity()));
          proxyButtonView.setAlpha(0f);
          proxyButtonView.setVisibility(View.GONE);
-@@ -7452,6 +7453,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
+@@ -7454,6 +7455,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                      passwordButton = new ImageView(context);
                      passwordButton.setImageResource(R.drawable.msg_message);
                      AndroidUtilities.updateViewVisibilityAnimated(passwordButton, true, 0.1f, false);
@@ -13004,7 +13017,7 @@ index fd96880..17371c9 100644
                      passwordButton.setOnClickListener(v -> {
                          isPasswordVisible = !isPasswordVisible;
  
-@@ -9891,6 +9893,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
+@@ -9893,6 +9895,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
  
              cells[2].setSubtitle(premium_days == 7 ? getString(R.string.SMSFee3Text) : formatPluralStringComma("SMSFee3TextDays", premium_days));
  
@@ -13025,10 +13038,10 @@ index 46bc0ae..df095ea 100644
                  if (invite == null) {
                      return;
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/MessageSendPreview.java b/TMessagesProj/src/main/java/org/telegram/ui/MessageSendPreview.java
-index 0d1869e..de3509a 100644
+index ee1e9d1..0e5bf98 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/MessageSendPreview.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/MessageSendPreview.java
-@@ -1263,6 +1263,7 @@ public class MessageSendPreview extends Dialog implements NotificationCenter.Not
+@@ -1256,6 +1256,7 @@ public class MessageSendPreview extends Dialog implements NotificationCenter.Not
          this.anchorSendButton.copyTo(this.sendButton);
          this.sendButton.open.set(sendButton.open.get(), true);
          this.sendButton.setOnClickListener(onClick);
@@ -13163,7 +13176,7 @@ index b7eb4d4..66593de 100644
          headerCell = new HeaderCell(context);
          headerCell.setText(LocaleController.getString(R.string.PassportProvidedInformation));
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java
-index 5b50a6b..6fab972 100644
+index cd72169..497450a 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java
 @@ -1781,6 +1781,7 @@ public class PeerColorActivity extends BaseFragment implements NotificationCente
@@ -13224,10 +13237,10 @@ index 7749cc7..c77703d 100644
                  if (chatActivity != null && chatActivity.isInScheduleMode()) {
                      AlertsCreator.createScheduleDatePickerDialog(getParentActivity(), chatActivity.getDialogId(), (notify, scheduleDate, scheduleRepeatPeriod) -> sendSelectedPhotos(notify, scheduleDate, 0));
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/PhotoViewer.java b/TMessagesProj/src/main/java/org/telegram/ui/PhotoViewer.java
-index 80e6e90..d51a667 100644
+index 5ff6a5a..4865fe5 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/PhotoViewer.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/PhotoViewer.java
-@@ -755,9 +755,15 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
+@@ -756,9 +756,15 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
              set(left, right, true);
          }
  
@@ -13243,7 +13256,7 @@ index 80e6e90..d51a667 100644
              if (
                  LocaleController.getInstance().getCurrentLocaleInfo() != null &&
                  !TextUtils.equals(lng, LocaleController.getInstance().getCurrentLocaleInfo().shortName)
-@@ -4904,6 +4910,53 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
+@@ -4906,6 +4912,53 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
  
          countView = new PhotoCountView(activity);
          containerView.addView(countView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.FILL_HORIZONTAL | Gravity.TOP));
@@ -13297,7 +13310,7 @@ index 80e6e90..d51a667 100644
  
          actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
              @Override
-@@ -7865,8 +7918,14 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
+@@ -7870,8 +7923,14 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
              playButtonAccessibilityOverlay.setContentDescription(getString("AccActionPlay", R.string.AccActionPlay));
              playButtonAccessibilityOverlay.setFocusable(true);
              playButtonAccessibilityOverlay.setOnClickListener(v -> {
@@ -13314,7 +13327,7 @@ index 80e6e90..d51a667 100644
              });
              containerView.addView(playButtonAccessibilityOverlay, LayoutHelper.createFrame(64, 64, Gravity.CENTER));
          }
-@@ -14054,6 +14113,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
+@@ -14094,6 +14153,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
              videoTimelineView.setAlpha(1.0f);
          }
          muteDrawable.setMuted(false, false);
@@ -13322,7 +13335,7 @@ index 80e6e90..d51a667 100644
          editorDoneLayout.setVisibility(View.GONE);
          captionTextViewSwitcher.setTag(null);
          captionTextViewSwitcher.setVisibility(View.INVISIBLE);
-@@ -19314,6 +19374,49 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
+@@ -19355,6 +19415,49 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
          animateTo(scale, moveToX, moveToY, zoom);
      }
  
@@ -13372,7 +13385,7 @@ index 80e6e90..d51a667 100644
      private void goToNext() {
          float extra = 0;
          if (scale != 1) {
-@@ -20546,6 +20649,14 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
+@@ -20601,6 +20704,14 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
      }
  
  
@@ -13387,7 +13400,7 @@ index 80e6e90..d51a667 100644
      private void onActionClick(boolean download) {
          if (currentMessageObject == null && currentBotInlineResult == null && (pageBlocksAdapter == null || currentFileNames[0] == null) && sendPhotoType != SELECT_TYPE_NO_SELECT) {
              return;
-@@ -20847,7 +20958,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
+@@ -20902,7 +21013,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
              }
          }
          if (containerView.getTag() != null) {
@@ -13396,7 +13409,7 @@ index 80e6e90..d51a667 100644
  
              if (sharedMediaType == MediaDataController.MEDIA_FILE && currentMessageObject != null) {
                  if (!currentMessageObject.canPreviewDocument()) {
-@@ -21228,11 +21339,11 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
+@@ -21283,11 +21394,11 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                      videoTimelineView.setMaxProgressDiff(1.0f);
                      videoTimelineView.setMode(VideoTimelinePlayView.MODE_VIDEO);
                  }
@@ -13540,10 +13553,10 @@ index 447bf35..1cb6dbf 100644
                      break;
                  }
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java
-index f0a3ad0..556dba1 100644
+index 7805f9d..489fb62 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java
-@@ -9959,6 +9959,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
+@@ -10002,6 +10002,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
          if (menu.getItem(10) == null) {
              if (animatingItem == null) {
                  animatingItem = menu.addItem(10, R.drawable.ic_ab_other);
@@ -13579,17 +13592,534 @@ index d222504..ed36164 100644
              if (checked) {
                  if (checkDrawable == null) {
                      checkDrawable = getResources().getDrawable(R.drawable.proxy_check).mutate();
-diff --git a/TMessagesProj/src/main/java/org/telegram/ui/QrActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/QrActivity.java
-index 42b1b08..943716c 100644
---- a/TMessagesProj/src/main/java/org/telegram/ui/QrActivity.java
-+++ b/TMessagesProj/src/main/java/org/telegram/ui/QrActivity.java
-@@ -1,5 +1,6 @@
- package org.telegram.ui;
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/QrShare/EmojiPickOverlay.java b/TMessagesProj/src/main/java/org/telegram/ui/QrShare/EmojiPickOverlay.java
+index ca93567..15b32df 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/QrShare/EmojiPickOverlay.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/QrShare/EmojiPickOverlay.java
+@@ -148,8 +148,81 @@ final class EmojiPickOverlay extends View {
+         return 1f + c3 * u * u * u + c1 * u * u;
+     }
  
++    private int a11yCount = -1;
 +
- import static org.telegram.messenger.AndroidUtilities.dp;
- import static org.telegram.messenger.LocaleController.getString;
++    // what is in the row over the keyboard, without those on their way out
++    private ArrayList<Item> a11yItems() {
++        final ArrayList<Item> shown = new ArrayList<>();
++        if (islandShow < 0.5f) return shown;
++        for (int i = 0; i < items.size(); i++) {
++            if (!items.get(i).leaving && !Float.isNaN(items.get(i).x)) shown.add(items.get(i));
++        }
++        return shown;
++    }
++
++    private final androidx.customview.widget.ExploreByTouchHelper a11y = new androidx.customview.widget.ExploreByTouchHelper(this) {
++        @Override
++        protected int getVirtualViewAt(float x, float y) {
++            if (!islandRect.contains(x, y)) return INVALID_ID;
++            final ArrayList<Item> shown = a11yItems();
++            for (int i = 0; i < shown.size(); i++) {
++                if (Math.abs(x - shown.get(i).x) < dp(CELL) / 2f) return i;
++            }
++            return INVALID_ID;
++        }
++
++        @Override
++        protected void getVisibleVirtualViews(List<Integer> ids) {
++            final int count = a11yItems().size();
++            for (int i = 0; i < count; i++) ids.add(i);
++        }
++
++        @Override
++        protected void onPopulateNodeForVirtualView(int id, @androidx.annotation.NonNull androidx.core.view.accessibility.AccessibilityNodeInfoCompat node) {
++            final ArrayList<Item> shown = a11yItems();
++            final android.graphics.Rect bounds = new android.graphics.Rect(0, 0, 1, 1);
++            String name = "";
++            if (id < shown.size()) {
++                final Item item = shown.get(id);
++                bounds.set((int) (item.x - dp(CELL) / 2f), (int) islandRect.top, (int) (item.x + dp(CELL) / 2f), (int) islandRect.bottom);
++                final Drawable d = host.emojiFor(item.key);
++                final String fallback = org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.AccDescrCustomEmoji);
++                name = d instanceof org.telegram.ui.Components.AnimatedEmojiDrawable
++                    ? org.telegram.messenger.MessageObject.findAnimatedEmojiEmoticon(((org.telegram.ui.Components.AnimatedEmojiDrawable) d).getDocument(), fallback)
++                    : fallback;
++            }
++            node.setContentDescription(name);
++            node.setBoundsInParent(bounds);
++            node.setClassName("android.widget.Button");
++            node.setClickable(true);
++            node.addAction(new androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK, org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.Remove)));
++        }
++
++        @Override
++        protected boolean onPerformActionForVirtualView(int id, int action, android.os.Bundle arguments) {
++            if (action != android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK || id >= a11yItems().size()) return false;
++            host.removePickAt(id);
++            invalidate();
++            return true;
++        }
++    };
++
++    {
++        androidx.core.view.ViewCompat.setAccessibilityDelegate(this, a11y);
++    }
++
++    @Override
++    public boolean dispatchHoverEvent(android.view.MotionEvent event) {
++        return a11y.dispatchHoverEvent(event) || super.dispatchHoverEvent(event);
++    }
++
+     @Override
+     protected void onDraw(Canvas c) {
++        final int a11yNow = a11yItems().size();
++        if (a11yNow != a11yCount) {
++            a11yCount = a11yNow;
++            post(a11y::invalidateRoot);
++        }
+         final List<String> picked = host.pickedKeys();
+         final long now = nowMs();
+         boolean animating = false;
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrEmojiPanel.java b/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrEmojiPanel.java
+index 809c5db..8d5c270 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrEmojiPanel.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrEmojiPanel.java
+@@ -492,6 +492,9 @@ public class QrEmojiPanel extends FrameLayout implements NotificationCenter.Noti
+     /** The emoji grid; the screen draws under its cells and masks them (fades) through the two hooks. */
+     public static class Grid extends RecyclerListView {
  
++        /** Whether the emoji of a cell's key is among those picked, for a screen reader. */
++        public @Nullable org.telegram.messenger.Utilities.CallbackReturn<String, Boolean> pickedCheck;
++
+         public @Nullable Consumer<Canvas> beforeChildrenDraw;
+         /** When set, the grid draws into its own layer and this masks it, e.g. DST_IN gradients. */
+         public @Nullable Consumer<Canvas> afterChildrenDraw;
+@@ -536,6 +539,15 @@ public class QrEmojiPanel extends FrameLayout implements NotificationCenter.Noti
+             placeholder.setColor(PLACEHOLDER_COLOR);
+         }
+ 
++        @Override
++        public void onInitializeAccessibilityNodeInfo(android.view.accessibility.AccessibilityNodeInfo info) {
++            super.onInitializeAccessibilityNodeInfo(info);
++            final Grid grid = getParent() instanceof Grid ? (Grid) getParent() : null;
++            if (grid != null && grid.pickedCheck != null && key != null) {
++                info.setSelected(Boolean.TRUE.equals(grid.pickedCheck.run(key)));
++            }
++        }
++
+         /** The key the screen uses for a picked emoji: "c:" + document id. */
+         @Nullable
+         public String getKey() {
+@@ -566,7 +578,7 @@ public class QrEmojiPanel extends FrameLayout implements NotificationCenter.Noti
+             if (isAttachedToWindow()) {
+                 drawable.addView(this);
+             }
+-            setContentDescription(document.id + "");
++            setContentDescription(org.telegram.messenger.MessageObject.findAnimatedEmojiEmoticon(document, org.telegram.messenger.LocaleController.getString(R.string.AccDescrCustomEmoji)));
+             invalidate();
+         }
+ 
+@@ -769,6 +781,9 @@ public class QrEmojiPanel extends FrameLayout implements NotificationCenter.Noti
+                 return;
+             }
+             selected = index;
++            for (int i = 0; i < content.getChildCount(); i++) {
++                content.getChildAt(i).setSelected(i == index);
++            }
+             if (!animated) {
+                 circleX = Float.NaN;
+             }
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrScanOverlay.java b/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrScanOverlay.java
+index 504a850..a84cd84 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrScanOverlay.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrScanOverlay.java
+@@ -907,6 +907,73 @@ public final class QrScanOverlay extends FrameLayout {
+         return true;
+     }
+ 
++    private final androidx.customview.widget.ExploreByTouchHelper a11y = new androidx.customview.widget.ExploreByTouchHelper(this) {
++        private static final int ID_CLOSE = 1, ID_FLASH = 2, ID_GALLERY = 3;
++
++        private RectF rectOf(int id) {
++            return id == ID_CLOSE ? closeRect : id == ID_FLASH ? flashRect : galleryRect;
++        }
++
++        @Override
++        protected int getVirtualViewAt(float x, float y) {
++            if (progress < 1f || closing) return INVALID_ID;
++            if (hit(closeRect, x, y)) return ID_CLOSE;
++            if (hit(flashRect, x, y)) return ID_FLASH;
++            if (onGallery != null && hit(galleryRect, x, y)) return ID_GALLERY;
++            return INVALID_ID;
++        }
++
++        @Override
++        protected void getVisibleVirtualViews(java.util.List<Integer> ids) {
++            ids.add(ID_CLOSE);
++            ids.add(ID_FLASH);
++            if (onGallery != null) ids.add(ID_GALLERY);
++        }
++
++        @Override
++        protected void onPopulateNodeForVirtualView(int id, @NonNull androidx.core.view.accessibility.AccessibilityNodeInfoCompat node) {
++            node.setContentDescription(LocaleController.getString(id == ID_CLOSE ? R.string.Close : id == ID_GALLERY ? R.string.ChatGallery : torch ? R.string.AccDescrCameraFlashOn : R.string.AccDescrCameraFlashOff));
++            final android.graphics.Rect bounds = new android.graphics.Rect();
++            rectOf(id).roundOut(bounds);
++            if (bounds.isEmpty()) bounds.set(0, 0, 1, 1);
++            node.setBoundsInParent(bounds);
++            node.setClassName("android.widget.Button");
++            node.setClickable(true);
++            node.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.ACTION_CLICK);
++        }
++
++        @Override
++        protected boolean onPerformActionForVirtualView(int id, int action, android.os.Bundle arguments) {
++            if (action != android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK || progress < 1f || closing) return false;
++            if (id == ID_CLOSE) {
++                close();
++            } else if (id == ID_FLASH) {
++                toggleTorch();
++                invalidateVirtualView(id);
++            } else if (id == ID_GALLERY && onGallery != null) {
++                onGallery.run();
++            } else {
++                return false;
++            }
++            return true;
++        }
++    };
++
++    {
++        androidx.core.view.ViewCompat.setAccessibilityDelegate(this, a11y);
++    }
++
++    @Override
++    public boolean dispatchHoverEvent(MotionEvent event) {
++        return a11y.dispatchHoverEvent(event) || super.dispatchHoverEvent(event);
++    }
++
++    @Override
++    protected void onAttachedToWindow() {
++        super.onAttachedToWindow();
++        announceForAccessibility(LocaleController.getString(R.string.ScanQrCode));
++    }
++
+     private static boolean hit(RectF rect, float x, float y) {
+         return x >= rect.left - dp(8) && x <= rect.right + dp(8) && y >= rect.top - dp(8) && y <= rect.bottom + dp(8);
+     }
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrShareActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrShareActivity.java
+index 0ff0e9f..45845f4 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrShareActivity.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrShareActivity.java
+@@ -345,6 +345,8 @@ public class QrShareActivity extends BaseFragment {
+             });
+         });
+         frame.addView(scanOverlay, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
++        // the scanner covers the screen, and what is under it is not to be walked through
++        view.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+     }
+ 
+     private void removeScanner(QrScanOverlay overlay) {
+@@ -356,6 +358,7 @@ public class QrShareActivity extends BaseFragment {
+         }
+         if (view != null) {
+             view.setScanHidden(false);
++            view.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+         }
+     }
+ 
+@@ -728,6 +731,7 @@ public class QrShareActivity extends BaseFragment {
+                     super.dispatchDraw(canvas);
+                 }
+             };
++            emojiView.getGrid().pickedCheck = key -> view != null && view.pickedKeys().contains(key);
+             emojiView.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                 @Override
+                 public void getOutline(View v, android.graphics.Outline outline) {
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrShareView.java b/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrShareView.java
+index c2a57a1..e78a8cc 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrShareView.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/QrShare/QrShareView.java
+@@ -1842,6 +1842,7 @@ public class QrShareView extends View {
+         toastText = message;
+         toastAction = action;
+         toastUntil = System.currentTimeMillis() + (action != null ? 4000 : 2800);
++        announceForAccessibility(message);
+         invalidate();
+     }
+ 
+@@ -2138,6 +2139,7 @@ public class QrShareView extends View {
+     private boolean immediateFrame;
+ 
+     private void onDrawInner(@NonNull Canvas canvas) {
++        checkA11yState();
+         final long now = System.currentTimeMillis();
+         final int w = getWidth(), h = getHeight();
+         step(now);
+@@ -6971,6 +6973,265 @@ public class QrShareView extends View {
+         }
+     }
+ 
++    // ---- screen reader: the view draws everything, so each thing it draws is given as a node of its own
++    private static final int A11Y_CLOSE = 1, A11Y_SCAN = 2, A11Y_CODE = 3, A11Y_CHIP = 4, A11Y_TAB = 5, A11Y_SHARE = 8, A11Y_SAVE = 9,
++        A11Y_MENU = 10, A11Y_BUY = 13, A11Y_GIFTS_INFO = 14, A11Y_TOAST_ACTION = 15, A11Y_COLOR = 1000, A11Y_GIFT = 3000;
++    private final RectF a11yRect = new RectF();
++    private final android.graphics.Rect a11yBounds = new android.graphics.Rect();
++    private final java.util.ArrayList<Integer> a11yIds = new java.util.ArrayList<>();
++    private int a11yState;
++
++    private final androidx.customview.widget.ExploreByTouchHelper a11y = new androidx.customview.widget.ExploreByTouchHelper(this) {
++        @Override
++        protected int getVirtualViewAt(float x, float y) {
++            a11yIds.clear();
++            collectA11yIds(a11yIds);
++            for (int i = 0; i < a11yIds.size(); i++) {
++                if (a11yRectOf(a11yIds.get(i), a11yRect) && a11yRect.contains(x, y)) return a11yIds.get(i);
++            }
++            return INVALID_ID;
++        }
++
++        @Override
++        protected void getVisibleVirtualViews(java.util.List<Integer> virtualViewIds) {
++            collectA11yIds(virtualViewIds);
++        }
++
++        @Override
++        protected void onPopulateNodeForVirtualView(int id, @NonNull androidx.core.view.accessibility.AccessibilityNodeInfoCompat node) {
++            final CharSequence text = a11yText(id);
++            node.setContentDescription(text != null ? text : "");
++            if (a11yRectOf(id, a11yRect)) {
++                a11yRect.roundOut(a11yBounds);
++                a11yBounds.intersect(0, 0, getWidth(), getHeight());
++            } else {
++                a11yBounds.set(0, 0, 1, 1);
++            }
++            node.setBoundsInParent(a11yBounds);
++            if (id != A11Y_CODE && id != A11Y_GIFTS_INFO) {
++                node.setClassName("android.widget.Button");
++                node.setClickable(true);
++                node.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.ACTION_CLICK);
++            }
++            if (id >= A11Y_COLOR) {
++                node.setSelected(a11ySelected(id));
++            }
++        }
++
++        @Override
++        protected void onPopulateNodeForHost(@NonNull androidx.core.view.accessibility.AccessibilityNodeInfoCompat node) {
++            if (a11yScrolls()) {
++                node.setScrollable(true);
++                if (sheetScroll > 0) {
++                    node.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.ACTION_SCROLL_BACKWARD);
++                }
++                if (sheetScroll < maxScroll()) {
++                    node.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.ACTION_SCROLL_FORWARD);
++                }
++            }
++        }
++
++        @Override
++        protected boolean onPerformActionForVirtualView(int id, int action, android.os.Bundle arguments) {
++            if (action != android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) return false;
++            if (id == A11Y_TOAST_ACTION) {
++                toastUntil = 0;
++                invalidate();
++                if (delegate != null) delegate.onPremiumSubscribe();
++                return true;
++            }
++            if (!a11yRectOf(id, a11yRect)) return false;
++            onTap(a11yRect.centerX(), a11yRect.centerY());
++            invalidate();
++            invalidateVirtualView(id);
++            if (id >= A11Y_COLOR && a11ySelected(id)) {
++                sendEventForVirtualView(id, android.view.accessibility.AccessibilityEvent.TYPE_VIEW_SELECTED);
++            }
++            return true;
++        }
++    };
++
++    {
++        androidx.core.view.ViewCompat.setAccessibilityDelegate(this, a11y);
++    }
++
++    private boolean a11yScrolls() {
++        return menu <= 0.5f && sheet > 0.5f && tab != SCENE_EMOJI && maxScroll() > 0;
++    }
++
++    private void collectA11yIds(java.util.List<Integer> out) {
++        if (toastShown && shownToastAction != null && !toastRect.isEmpty()) out.add(A11Y_TOAST_ACTION);
++        if (menu > 0.5f) {
++            if (!scanHidden) out.add(A11Y_SCAN);
++            for (int i = 0; i < menuRows.length; i++) {
++                if (!menuRows[i].isEmpty()) out.add(A11Y_MENU + i);
++            }
++            return;
++        }
++        out.add(A11Y_CLOSE);
++        if (sheet > 0.5f) {
++            if (chipShown) out.add(A11Y_CHIP);
++            if (tab == SCENE_COLOR) {
++                for (int slot = 0; slot < PRESET_COUNT + Backdrops.CENTER.length; slot++) {
++                    if (a11yRectOf(A11Y_COLOR + slot, a11yRect) && a11yCenterInSheet(a11yRect)) out.add(A11Y_COLOR + slot);
++                }
++            } else if (tab == SCENE_GIFT) {
++                if (giftsEmpty()) {
++                    out.add(A11Y_GIFTS_INFO);
++                    if (!buyRect.isEmpty()) out.add(A11Y_BUY);
++                } else if (gifts.isEmpty()) {
++                    out.add(A11Y_GIFTS_INFO);
++                }
++                for (int i = 0; i < giftCount(); i++) {
++                    if (a11yRectOf(A11Y_GIFT + i, a11yRect) && a11yCenterInSheet(a11yRect)) out.add(A11Y_GIFT + i);
++                }
++            }
++            return;
++        }
++        if (!scanHidden) out.add(A11Y_SCAN);
++        out.add(A11Y_CODE);
++        if (chipShown) out.add(A11Y_CHIP);
++        if (themeEditable) {
++            for (int i = 0; i < 3; i++) out.add(A11Y_TAB + i);
++        }
++        if (!shareHidden) {
++            out.add(A11Y_SHARE);
++            out.add(A11Y_SAVE);
++        }
++    }
++
++    private boolean a11yCenterInSheet(RectF r) {
++        return r.centerY() >= sheetRect.top && r.centerY() <= sheetRect.bottom;
++    }
++
++    private boolean a11yRectOf(int id, RectF out) {
++        if (id >= A11Y_GIFT) {
++            final int i = id - A11Y_GIFT, cols = giftCols();
++            if (i >= giftCount()) return false;
++            final float sw = sheetRect.width() - dp(8), cell = sw / 3f, cw = sw / cols;
++            final float x = sheetRect.left + dp(4) + cw * (i % cols), y = sheetRect.top + gridPad() + GIFT_HEADER + cell * (i / cols) - sheetScroll;
++            out.set(x, y, x + cw, y + cell);
++        } else if (id >= A11Y_COLOR) {
++            final int slot = id - A11Y_COLOR;
++            if (slot >= PRESET_COUNT + Backdrops.CENTER.length) return false;
++            final float cell = (sheetRect.width() - dp(8)) / 6f;
++            final float x = sheetRect.left + dp(4) + cell * (slot % 6), y = sheetRect.top + gridPad() + cell * (slot / 6) - sheetScroll;
++            out.set(x, y, x + cell, y + cell);
++        } else if (id >= A11Y_TAB && id < A11Y_TAB + 3) {
++            final float seg = tabsRect.width() / 3f;
++            out.set(tabsRect.left + seg * (id - A11Y_TAB), tabsRect.top, tabsRect.left + seg * (id - A11Y_TAB + 1), tabsRect.bottom);
++        } else if (id >= A11Y_MENU && id < A11Y_MENU + menuRows.length) {
++            out.set(menuRows[id - A11Y_MENU]);
++        } else if (id == A11Y_CLOSE) {
++            out.set(closeRect);
++        } else if (id == A11Y_SCAN) {
++            out.set(scanRect);
++        } else if (id == A11Y_CODE) {
++            out.set(cardCenterX() - cardW() / 2f, cardTop(), cardCenterX() + cardW() / 2f, cardTop() + cardH());
++        } else if (id == A11Y_CHIP) {
++            out.set(chipRect);
++        } else if (id == A11Y_SHARE) {
++            out.set(shareRect);
++        } else if (id == A11Y_SAVE) {
++            out.set(saveRect);
++        } else if (id == A11Y_BUY) {
++            out.set(buyRect);
++        } else if (id == A11Y_GIFTS_INFO) {
++            out.set(sheetRect);
++        } else if (id == A11Y_TOAST_ACTION) {
++            out.set(toastRect.right - toastActionWidth() - dp(28), toastRect.top - dp(6), toastRect.right + dp(6), toastRect.bottom + dp(6));
++        } else {
++            return false;
++        }
++        return !out.isEmpty();
++    }
++
++    private boolean a11ySelected(int id) {
++        if (id >= A11Y_GIFT) return pattern.type == PAT_GIFT && pattern.giftIndex == id - A11Y_GIFT;
++        return scene != null && scene.type == SCENE_COLOR && scene.index == slotIndex(id - A11Y_COLOR);
++    }
++
++    private CharSequence a11yText(int id) {
++        if (id >= A11Y_GIFT) {
++            final int i = id - A11Y_GIFT;
++            if (i >= gifts.size()) return null;
++            final TL_stars.TL_starGiftUnique gift = gifts.get(i);
++            return gift.title + " #" + gift.num;
++        }
++        if (id >= A11Y_COLOR) {
++            final int i = slotIndex(id - A11Y_COLOR);
++            return i >= 0 && i < Backdrops.NAMES.length ? Backdrops.NAMES[i] : null;
++        }
++        if (id >= A11Y_TAB && id < A11Y_TAB + 3) {
++            final int t = id - A11Y_TAB;
++            return org.telegram.messenger.LocaleController.getString(t == SCENE_COLOR ? R.string.ColorTheme : t == SCENE_EMOJI ? R.string.Emoji : R.string.QrGift);
++        }
++        if (id >= A11Y_MENU && id < A11Y_MENU + menuRows.length) {
++            final int i = id - A11Y_MENU;
++            final String sub = menuSubtitles(menuTimerOn)[i];
++            return menuTitles(menuTimerOn)[i] + (sub != null ? ", " + sub : "");
++        }
++        switch (id) {
++            case A11Y_CLOSE:
++                return org.telegram.messenger.LocaleController.getString(R.string.Close);
++            case A11Y_SCAN:
++                return scanLabel;
++            case A11Y_CODE: {
++                final StringBuilder sb = new StringBuilder(org.telegram.messenger.LocaleController.getString(R.string.QrCode));
++                if (tempK > 0.5f) {
++                    if (!TextUtils.isEmpty(tempChipText)) sb.append(", ").append(tempChipText);
++                } else if (!TextUtils.isEmpty(caption)) {
++                    sb.append(", ").append(captionIsUsername ? "@" : "").append(caption);
++                }
++                return sb;
++            }
++            case A11Y_CHIP:
++                return free ? lastChip : feeA + "\u2605" + feeB;
++            case A11Y_SHARE:
++                return org.telegram.messenger.LocaleController.getString(R.string.ShareLink);
++            case A11Y_SAVE:
++                return org.telegram.messenger.LocaleController.getString(R.string.SaveToGallery);
++            case A11Y_BUY:
++                return buyLabel;
++            case A11Y_GIFTS_INFO:
++                return giftsEmpty() ? emptyTitleText : org.telegram.messenger.LocaleController.getString(!giftsEndReached ? R.string.QrLoadingGifts : giftsOwner < 0 ? R.string.QrChatNoCollectibles : R.string.QrNoCollectibles);
++            case A11Y_TOAST_ACTION:
++                return shownToastAction;
++        }
++        return null;
++    }
++
++    // what is on the screen is decided as it is drawn, and the stops follow it
++    private void checkA11yState() {
++        if (!org.telegram.messenger.AndroidUtilities.isAccessibilityScreenReaderEnabled()) return;
++        int state = (menu > 0.5f ? 1 : 0) | (sheet > 0.5f ? 2 : 0) | (chipShown ? 4 : 0) | (free ? 8 : 0) | (scanHidden ? 16 : 0)
++            | (shareHidden ? 32 : 0) | (themeEditable ? 64 : 0) | (toastShown && shownToastAction != null ? 128 : 0) | (giftsEndReached ? 256 : 0);
++        state = 31 * (31 * state + tab) + giftCount();
++        if (state != a11yState) {
++            a11yState = state;
++            post(a11y::invalidateRoot);
++        }
++    }
++
++    @Override
++    public boolean dispatchHoverEvent(MotionEvent event) {
++        return a11y.dispatchHoverEvent(event) || super.dispatchHoverEvent(event);
++    }
++
++    @Override
++    public boolean performAccessibilityAction(int action, android.os.Bundle arguments) {
++        if ((action == android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD || action == android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) && a11yScrolls()) {
++            final float page = sheetRect.height() * 0.8f;
++            sheetScroll = Math.max(0, Math.min(maxScroll(), sheetScroll + (action == android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD ? page : -page)));
++            scroller.forceFinished(true);
++            invalidate();
++            a11y.invalidateRoot();
++            sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_SCROLLED);
++            return true;
++        }
++        return super.performAccessibilityAction(action, arguments);
++    }
++
+     @Override
+     protected boolean verifyDrawable(@NonNull Drawable who) {
+         if (who instanceof android.graphics.drawable.RippleDrawable) return true;
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/ReportBottomSheet.java b/TMessagesProj/src/main/java/org/telegram/ui/ReportBottomSheet.java
 index 04e877e..858de7e 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/ReportBottomSheet.java
@@ -13741,10 +14271,10 @@ index de726d3..4a483e2 100644
                  input.setText("");
                  search(null, true, false);
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java
-index 693df78..951692d 100644
+index d56c57b..6758d29 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java
-@@ -397,6 +397,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
+@@ -408,6 +408,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
  
          avatarContainer = new FrameLayout(context);
          topView.addView(avatarContainer, LayoutHelper.createFrame(120, 120, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 23 - 12, 0, 0));
@@ -13753,7 +14283,7 @@ index 693df78..951692d 100644
              TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(UserConfig.getInstance(currentAccount).getClientUserId());
              if (user == null) {
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Stars/MessageSuggestionOfferSheet.java b/TMessagesProj/src/main/java/org/telegram/ui/Stars/MessageSuggestionOfferSheet.java
-index 9300837..25a9fd7 100644
+index a535e8e..56f87c4 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Stars/MessageSuggestionOfferSheet.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Stars/MessageSuggestionOfferSheet.java
 @@ -174,6 +174,7 @@ public class MessageSuggestionOfferSheet extends BottomSheet {
@@ -13785,10 +14315,32 @@ index 2fb506e..d647bb4 100644
          headerPlay.setOnClickListener(v -> {
              // AndroidUtilities.dumpCanvas(container);
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Stars/StarGiftSheet.java b/TMessagesProj/src/main/java/org/telegram/ui/Stars/StarGiftSheet.java
-index 1c2638d..c4c4292 100644
+index cdff312..dfc453e 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Stars/StarGiftSheet.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Stars/StarGiftSheet.java
-@@ -2237,6 +2237,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
+@@ -491,6 +491,21 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
+         infoLayout.addView(walletDisplayLayout, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, -4, 0, 4));
+         ScaleStateListAnimator.apply(walletDisplayLayout, 0.025f, 1.5f);
+         walletDisplayLayout.setOnClickListener(v -> toggleWalletDisplay());
++        walletDisplayLayout.setAccessibilityDelegate(new View.AccessibilityDelegate() {
++            @Override
++            public void onInitializeAccessibilityNodeInfo(View host, android.view.accessibility.AccessibilityNodeInfo info) {
++                super.onInitializeAccessibilityNodeInfo(host, info);
++                info.setClassName("android.widget.CheckBox");
++                info.setCheckable(true);
++                info.setChecked(walletDisplayCheckbox.isChecked());
++            }
++
++            @Override
++            public void onInitializeAccessibilityEvent(View host, android.view.accessibility.AccessibilityEvent event) {
++                super.onInitializeAccessibilityEvent(host, event);
++                event.setChecked(walletDisplayCheckbox.isChecked());
++            }
++        });
+         walletDisplayLayout.setVisibility(View.GONE);
+ 
+         upgradeLayout = new LinearLayout(context) {
+@@ -2362,6 +2377,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
              closeView.setImageResource(R.drawable.msg_close);
              ScaleStateListAnimator.apply(closeView);
              addView(closeView, LayoutHelper.createFrame(28, 28, Gravity.RIGHT | Gravity.TOP, 0, 12, 12, 0));
@@ -13796,7 +14348,7 @@ index 1c2638d..c4c4292 100644
              closeView.setOnClickListener(v -> dismiss.run());
              closeView.setVisibility(View.GONE);
  //            addView(resellPriceView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 24, Gravity.LEFT | Gravity.TOP, 12, 14, 0, 0));
-@@ -2248,6 +2249,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
+@@ -2373,6 +2389,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
              ScaleStateListAnimator.apply(craftView);
              if (onCraftClick != null) {
                  addView(craftView, LayoutHelper.createFrame(42, 42, Gravity.TOP | Gravity.RIGHT, 0, 5, 5 + 42, 0));
@@ -13804,7 +14356,7 @@ index 1c2638d..c4c4292 100644
                  craftView.setOnClickListener(onCraftClick);
              }
              craftView.setVisibility(View.GONE);
-@@ -4333,6 +4335,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
+@@ -4710,6 +4727,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
                  deleteView.setImageResource(R.drawable.menu_delete_old);
                  deleteView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider), PorterDuff.Mode.SRC_IN));
                  ScaleStateListAnimator.apply(deleteView);
@@ -13812,7 +14364,7 @@ index 1c2638d..c4c4292 100644
                  deleteView.setOnClickListener(v -> {
                      showDeleteDescriptionAlert(detailsText);
                  });
-@@ -8648,6 +8651,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
+@@ -9603,6 +9621,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
              helpButton.setImageResource(R.drawable.outline_question_mark);
              helpButton.setBackground(new RoundRectStrokeDrawable(dp(24), Theme.multAlpha(0xFFFFFFFF, 0.08f)));
              buttonsLayout.addView(helpButton, LayoutHelper.createFrame(32, 32, Gravity.TOP | Gravity.LEFT, 14, 14, 14, 14));
@@ -13820,7 +14372,7 @@ index 1c2638d..c4c4292 100644
              helpButton.setOnClickListener(v -> {
                  if (buttonsLayout.getAlpha() < 1) return;
                  onClose.run();
-@@ -8658,6 +8662,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
+@@ -9613,6 +9632,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
              closeButton.setImageResource(R.drawable.msg_close);
              closeButton.setBackground(new RoundRectStrokeDrawable(dp(24), Theme.multAlpha(0xFFFFFFFF, 0.08f)));
              buttonsLayout.addView(closeButton, LayoutHelper.createFrame(32, 32, Gravity.TOP | Gravity.RIGHT, 14, 14, 14, 14));
@@ -13961,7 +14513,7 @@ index e519859..0051dcb 100644
          protected void dispatchDraw(Canvas canvas) {
              count = animatedCount.set(senders.size());
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/StatisticActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/StatisticActivity.java
-index 4c50280..ea5c6d7 100644
+index b573a97..2423a90 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/StatisticActivity.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/StatisticActivity.java
 @@ -21,6 +21,7 @@ import android.graphics.drawable.ColorDrawable;
@@ -16034,7 +16586,7 @@ index 5226dd2..03c6190 100644
          actionBar.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
          actionBar.setCastShadows(false);
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/TopicsFragment.java b/TMessagesProj/src/main/java/org/telegram/ui/TopicsFragment.java
-index e24829d..9b9a417 100644
+index 51ac35c..262bfce 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/TopicsFragment.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/TopicsFragment.java
 @@ -2405,8 +2405,8 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
@@ -16049,7 +16601,7 @@ index e24829d..9b9a417 100644
          deleteItem = actionMode.addItemWithWidth(delete_id, R.drawable.msg_delete, AndroidUtilities.dp(54), getString(R.string.Delete));
          hideItem = actionMode.addItemWithWidth(hide_id, R.drawable.msg_archive_hide, AndroidUtilities.dp(54), getString(R.string.Hide));
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/TwoStepVerificationSetupActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/TwoStepVerificationSetupActivity.java
-index 75dc888..b473238 100644
+index 36ee8e4..530b4b7 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/TwoStepVerificationSetupActivity.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/TwoStepVerificationSetupActivity.java
 @@ -289,6 +289,7 @@ public class TwoStepVerificationSetupActivity extends BaseFragment {
@@ -16073,7 +16625,7 @@ index 11ea073..aa3936b 100644
              if (lockOnScreen) return;
              if (addPeopleSheet != null) {
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/GramWalletTonConnect.java b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/GramWalletTonConnect.java
-index fb5a133..ac32ec7 100644
+index 026188a..7043c7b 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/GramWalletTonConnect.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/GramWalletTonConnect.java
 @@ -1172,6 +1172,7 @@ public class GramWalletTonConnect {
@@ -16092,7 +16644,7 @@ index fb5a133..ac32ec7 100644
              content.setOnClickListener(v -> {
                  if (AndroidUtilities.addToClipboard(data.optString("text"))) {
                      BulletinFactory.of(sheet.topBulletinContainer, resourcesProvider)
-@@ -1581,6 +1583,7 @@ public class GramWalletTonConnect {
+@@ -1580,6 +1582,7 @@ public class GramWalletTonConnect {
          backView.setScaleType(ImageView.ScaleType.CENTER);
          backView.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector, resourcesProvider)));
          backView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider), PorterDuff.Mode.SRC_IN));
@@ -16101,10 +16653,10 @@ index fb5a133..ac32ec7 100644
          actionBar.addView(backView, LayoutHelper.createLinear(48, 48, 0f, Gravity.CENTER_VERTICAL | Gravity.LEFT, 4, 0, 0, 0));
  
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/TransactionCell.java b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/TransactionCell.java
-index 04a6136..982eca7 100644
+index 1080866..56a5ecc 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/TransactionCell.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/TransactionCell.java
-@@ -327,6 +327,7 @@ public class TransactionCell extends FrameLayout implements Theme.Colorable {
+@@ -348,6 +348,7 @@ public class TransactionCell extends FrameLayout implements Theme.Colorable {
              nftImageView.clearImage();
          }
  
@@ -16112,7 +16664,7 @@ index 04a6136..982eca7 100644
          if (transaction.amount == 0 && transaction.key_change) {
              amountView.setVisibility(View.GONE);
          } else if (transaction.nft != null) {
-@@ -343,6 +344,8 @@ public class TransactionCell extends FrameLayout implements Theme.Colorable {
+@@ -364,6 +365,8 @@ public class TransactionCell extends FrameLayout implements Theme.Colorable {
              amountView.setVisibility(View.VISIBLE);
              amountView.setCompoundDrawablesRelative(null, null, gramDrawable, null);
              amountView.setText(formatAmount(incoming, transaction.amount));
@@ -16196,10 +16748,10 @@ index 0000000..d786c48
 +    }
 +}
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletActionLayout.java b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletActionLayout.java
-index 0258365..d0cf7e0 100644
+index 90563c0..0eefac9 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletActionLayout.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletActionLayout.java
-@@ -225,6 +225,8 @@ public class WalletActionLayout {
+@@ -372,6 +372,8 @@ public class WalletActionLayout {
          }
          this.out = out;
          this.action = action;
@@ -16208,7 +16760,7 @@ index 0258365..d0cf7e0 100644
          this.waitingForReceive = !out && waitingForReceive;
          if (this.waitingForReceive) {
              forceRibbonReveal(0);
-@@ -939,6 +941,41 @@ public class WalletActionLayout {
+@@ -1104,6 +1106,41 @@ public class WalletActionLayout {
          return touchCaptured;
      }
  
@@ -16251,25 +16803,23 @@ index 0258365..d0cf7e0 100644
          this.onClick = onClick;
      }
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletActivity.java
-index b6fdd54..4c2e09b 100644
+index 67cddb5..87e8ce6 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletActivity.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletActivity.java
-@@ -91,6 +91,7 @@ import org.telegram.tgnet.tl.TL_account;
- import org.telegram.tgnet.tl.TL_toncenter;
- import org.telegram.tgnet.tl.TL_wallet;
+@@ -98,6 +98,7 @@ import org.telegram.tgnet.tl.TL_stars;
+ import org.telegram.ui.Gifts.GiftSheet;
+ import org.telegram.ui.Stars.StarGiftSheet;
  import org.telegram.ui.ActionBar.ActionBarMenu;
 +import org.telegram.ui.ActionBar.ActionBarMenuItem;
  import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
  import org.telegram.ui.ActionBar.ActionBarPopupWindow;
  import org.telegram.ui.ActionBar.AlertDialog;
-@@ -276,10 +277,14 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
-         actionBar.setClipToPadding(false);
+@@ -303,10 +304,13 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
  
          final ActionBarMenu menu = actionBar.createMenu();
--        menu.addItem(2, R.drawable.scan_qr).setOnClickListener(v -> {
-+        final ActionBarMenuItem scanItem = menu.addItem(2, R.drawable.scan_qr);
+         scanItem = menu.addItem(2, R.drawable.scan_qr);
 +        scanItem.setContentDescription(LocaleController.getString(R.string.WalletScanQRCode));
-+        scanItem.setOnClickListener(v -> {
+         scanItem.setOnClickListener(v -> {
              openWalletQrScanner();
          });
 -        menu.addItem(1, R.drawable.ic_ab_other).setOnClickListener(v -> {
@@ -16279,7 +16829,7 @@ index b6fdd54..4c2e09b 100644
              final GramWallet wallet = GramWallet.getInstance(currentAccount);
              final ItemOptions o = ItemOptions.makeOptions(WalletActivity.this, v, true);
              o.translate(0, -dp(48));
-@@ -597,6 +602,7 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
+@@ -626,6 +630,7 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
          };
          card.setDiamondOnCard(true);
          card.setCardOnClickListener(v -> openWalletQRAlert(getContext(), currentAccount, getResourceProvider()));
@@ -16287,7 +16837,7 @@ index b6fdd54..4c2e09b 100644
          listView.addEdgeEffectListener(cardOverscrollListener);
          cardShadowView = new View(context) {
              @Override
-@@ -2406,6 +2412,7 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
+@@ -2785,6 +2790,7 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
                      run.flags |= TextStyleSpan.FLAG_STYLE_SPOILER;
                      sb.setSpan(new TextStyleSpan(run), 0, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                      commentView.setText(sb);
@@ -16295,7 +16845,7 @@ index b6fdd54..4c2e09b 100644
                      final MessageDrawable commentBackground = new MessageDrawable(MessageDrawable.TYPE_TEXT, false, false);
                      commentBackground.shadow = false;
                      commentBackground.overrideColor = Theme.getColor(Theme.key_wallet_comment, resourceProvider);
-@@ -2429,6 +2436,7 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
+@@ -2808,6 +2814,7 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
                              run2.flags |= TextStyleSpan.FLAG_STYLE_SPOILER;
                              sb2.setSpan(new TextStyleSpan(run2), 0, sb2.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                              commentView.setText(sb2);
@@ -16303,7 +16853,7 @@ index b6fdd54..4c2e09b 100644
                              commentView.setTextIsSelectable(true);
                              commentView.setOnClickListener(null);
                              ScaleStateListAnimator.reset(commentView);
-@@ -2573,6 +2581,22 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
+@@ -2952,6 +2959,22 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
                  lockView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(typingCommentEncrypted[0] ? Theme.key_featuredStickers_addButton : Theme.key_windowBackgroundWhiteGrayText2, resourceProvider), PorterDuff.Mode.SRC_IN));
                  lockView.setImageResource(typingCommentEncrypted[0] ? R.drawable.wallet_comment_locked : R.drawable.wallet_comment_unlocked);
                  lockView.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector, resourceProvider), Theme.RIPPLE_MASK_CIRCLE_20DP));
@@ -16326,7 +16876,7 @@ index b6fdd54..4c2e09b 100644
                  final HintView2[] lastHint = new HintView2[1];
                  lockViewContainer.setOnClickListener(v -> {
                      typingCommentEncrypted[0] = !typingCommentEncrypted[0];
-@@ -3415,6 +3439,8 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
+@@ -3894,6 +3917,8 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
              super(context);
  
              final AddressRingView ringView = new AddressRingView(context, address);
@@ -16335,7 +16885,7 @@ index b6fdd54..4c2e09b 100644
              addView(ringView, LayoutHelper.createFrame(
                      LayoutHelper.MATCH_PARENT,
                      LayoutHelper.MATCH_PARENT,
-@@ -3551,6 +3577,8 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
+@@ -4042,6 +4067,8 @@ public class WalletActivity extends UniversalFragment implements NotificationCen
                  }
              };
              qrContainer.setOnClickListener(showAddress);
@@ -16345,18 +16895,18 @@ index b6fdd54..4c2e09b 100644
              showQrButton.setOnClickListener(v -> setShowingAddress(false));
          }
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletCardComponent.java b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletCardComponent.java
-index befa526..c46b050 100644
+index 9bd552b..c1037f0 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletCardComponent.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletCardComponent.java
-@@ -175,6 +175,7 @@ public class WalletCardComponent extends FrameLayout implements NotificationCent
+@@ -196,6 +196,7 @@ public class WalletCardComponent extends FrameLayout implements NotificationCent
          balanceView.setTextColor(Color.WHITE);
          balanceView.setIgnoreRTL(true);
          balanceLayout.addView(balanceView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 28));
 +        WalletAccessibility.readWithoutIcons(balanceView, null);
  
-         usdBalanceView = new AnimatedTextView(context, false, true, true, true, true);
-         usdBalanceView.setAnimationProperties(.35f, 0, 320, 3.5f, CubicBezierInterpolator.EASE_OUT_QUINT);
-@@ -344,6 +345,14 @@ public class WalletCardComponent extends FrameLayout implements NotificationCent
+         usdBalanceView = new AnimatedTextView(context, false, true, true, true, true) {
+             @Override
+@@ -564,6 +565,14 @@ public class WalletCardComponent extends FrameLayout implements NotificationCent
          cardView.setOnClickListener(listener);
      }
  
@@ -16370,10 +16920,10 @@ index befa526..c46b050 100644
 +
      public void setCardIcon(int drawableResId) {
          cardIconResId = drawableResId;
-         if (cardView instanceof WalletCard2DView) {
-@@ -558,6 +567,9 @@ public class WalletCardComponent extends FrameLayout implements NotificationCent
-             ((WalletCardView) cardView).setDiamondAlpha(1f - balanceTransitionProgress);
-         }
+ 
+@@ -773,6 +782,9 @@ public class WalletCardComponent extends FrameLayout implements NotificationCent
+         setUseGyroscope(gyroscopeTiltScale);
+ 
          cardView.setOnClickListener(cardClickListener);
 +        if (cardClickAccessibilityLabel != null) {
 +            WalletAccessibility.setClickLabel(cardView, cardClickAccessibilityLabel);
@@ -16420,10 +16970,10 @@ index 470aacb..6b7aeb8 100644
  
          BackupImageView stickerView = new BackupImageView(context);
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletSendEnterAmount.java b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletSendEnterAmount.java
-index 54ea52e..759c45b 100644
+index 7b19a2a..af70f16 100644
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletSendEnterAmount.java
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Wallet/WalletSendEnterAmount.java
-@@ -1140,6 +1140,7 @@ public class WalletSendEnterAmount extends UniversalFragment implements Notifica
+@@ -1146,6 +1146,7 @@ public class WalletSendEnterAmount extends UniversalFragment implements Notifica
          ));
          ScaleStateListAnimator.apply(usdView);
          usdView.setOnClickListener(v -> switchInputMode());
@@ -17826,7 +18376,7 @@ index cc49d13..af5a5cf 100644
 +    <item name="acc_action_via_bot" type="id" />
 +</resources>
 diff --git a/TMessagesProj/src/main/res/values/strings.xml b/TMessagesProj/src/main/res/values/strings.xml
-index 169ab90..bf3b632 100644
+index db9de75..7e5a788 100644
 --- a/TMessagesProj/src/main/res/values/strings.xml
 +++ b/TMessagesProj/src/main/res/values/strings.xml
 @@ -47,6 +47,7 @@
@@ -17875,7 +18425,7 @@ index 169ab90..bf3b632 100644
      <string name="PaintEdit">Edit</string>
      <string name="PaintArrow">Arrow</string>
      <string name="PaintDuplicate">Duplicate</string>
-@@ -4145,6 +4156,7 @@
+@@ -4151,6 +4162,7 @@
      <string name="RecentPosts">Recent posts</string>
      <string name="RecentPostsCapitalize">Recent Posts</string>
      <string name="ZoomOut">Zoom out</string>
@@ -17883,7 +18433,7 @@ index 169ab90..bf3b632 100644
      <string name="IVInteractionsChartTitle">IV Interactions</string>
      <string name="LoadingStats">Loading stats...</string>
      <string name="LoadingStatsDescription">Please wait a few moments while we are generating graphs.</string>
-@@ -4574,6 +4586,9 @@
+@@ -4580,6 +4592,9 @@
      <string name="VoipVideoOnPause">Video on Pause</string>
      <string name="VoipVideoScreenSharingTwoLines">You are sharing\nyour screen</string>
      <string name="VoipVideoScreenSharing">You are sharing your screen</string>
@@ -17893,7 +18443,7 @@ index 169ab90..bf3b632 100644
      <string name="VoipVideoPrivateScreenSharing">Everything on your screen, including notifications, will be shared.</string>
      <string name="VoipVideoScreenStopSharing">STOP SHARING</string>
      <string name="VoipPhoneScreen">PHONE SCREEN</string>
-@@ -4973,6 +4988,10 @@
+@@ -4979,6 +4994,10 @@
      <string name="AccDescrChannel">Channel</string>
      <string name="AccDescrTopic">Topic</string>
      <string name="AccDescrSecretChat">Secret chat</string>
@@ -17904,7 +18454,7 @@ index 169ab90..bf3b632 100644
      <string name="AccDescrSentDate">Sent %s</string>
      <string name="AccDescrReceivedDate">Received %s</string>
      <string name="AccDescrScheduledDate">Scheduled for %s</string>
-@@ -5000,13 +5019,23 @@
+@@ -5006,13 +5025,23 @@
      <string name="AccActionDownload">Download</string>
      <string name="AccActionCancelDownload">Cancel download</string>
      <string name="AccActionOpenFile">Open file</string>
@@ -17928,7 +18478,7 @@ index 169ab90..bf3b632 100644
      <string name="AccDescrAttachButton">Attach media</string>
      <string name="AccDescrChanSilentOn">Send silently</string>
      <string name="AccDescrChanSilentOff">Send notifications</string>
-@@ -5041,6 +5070,10 @@
+@@ -5047,6 +5076,10 @@
      <string name="AccDescrEditing">Editing</string>
      <string name="AccDescrPasscodeLock">Lock application</string>
      <string name="AccDescrBackspace">Backspace</string>
@@ -17939,7 +18489,7 @@ index 169ab90..bf3b632 100644
      <string name="AccDescrFingerprint">Fingerprint</string>
      <string name="AccDescrPrevious">Previous</string>
      <string name="AccDescrRepeatOff">Repeat, off</string>
-@@ -5062,6 +5095,8 @@
+@@ -5068,6 +5101,8 @@
      <string name="AccDescrCameraGallery">Gallery</string>
      <string name="AccDescrTakePhoto">Take photo</string>
      <string name="AccDescrStartRecording">Start recording</string>
@@ -17948,7 +18498,7 @@ index 169ab90..bf3b632 100644
      <string name="AccDescrStopRecording">Stop recording</string>
      <string name="AccDescrLockRecording">Lock recording</string>
      <string name="AccDescrStickerSet">Sticker set</string>
-@@ -5075,12 +5110,29 @@
+@@ -5081,12 +5116,29 @@
      <string name="AccDescrBrushType">Brush type</string>
      <string name="AccDescrPaint">Paint</string>
      <string name="AccDescrPlaceText">Place text</string>
@@ -17978,7 +18528,7 @@ index 169ab90..bf3b632 100644
      <string name="AccDescrPollVotesMentionDown">Go to next unread poll vote</string>
      <string name="AccDescrIVTitle">Title</string>
      <string name="AccDescrIVHeading">Heading</string>
-@@ -5107,12 +5159,18 @@
+@@ -5113,12 +5165,18 @@
      <string name="AccDescrMyLocation">My location</string>
      <string name="AccDescrLocationNotify">Notify when in range</string>
      <string name="AccDescrVideoQuality">Video quality</string>
@@ -17997,7 +18547,7 @@ index 169ab90..bf3b632 100644
      <string name="AccDescrMsgNotPlayed">Not played</string>
      <string name="AccDescrSearchNext">Next search result</string>
      <string name="AccDescrSearchPrev">Previous search result</string>
-@@ -5126,6 +5184,7 @@
+@@ -5132,6 +5190,7 @@
      <string name="AccDescrVideoCompressLow">Smaller size</string>
      <string name="AccDescrVideoCompressHigh">Higher quality</string>
      <string name="AccDescrPlayerDuration">%1$s of %2$s</string>
@@ -18005,7 +18555,7 @@ index 169ab90..bf3b632 100644
      <string name="AccDescrDownloadProgress">Downloaded %1$s of %2$s</string>
      <string name="AccDescrUploadProgress">Uploaded %1$s of %2$s</string>
      <string name="AccDescrNumberOfViews_one">Viewed %1$d time</string>
-@@ -5148,6 +5207,58 @@
+@@ -5154,6 +5213,58 @@
      <string name="AccDescrQuizCorrectAnswer">Correct answer</string>
      <string name="AccDescrQuizIncorrectAnswer">Incorrect answer</string>
      <string name="AccDescrQuizExplanation">Explanation</string>
@@ -18064,7 +18614,7 @@ index 169ab90..bf3b632 100644
      <string name="AccDescrPipMode">Picture-in-Picture mode</string>
      <string name="AccDescrVoipMicOn">Microphone is on</string>
      <string name="AccDescrVoipMicOff">Microphone is off</string>
-@@ -5864,6 +5975,7 @@
+@@ -5870,6 +5981,7 @@
      <string name="BanUserMonoforum">Ban User From Channel</string>
      <string name="UnbanUserMonoforum">Ban User From Channel</string>
      <string name="AccDescrCustomEmoji">Custom emoji</string>
@@ -18072,7 +18622,7 @@ index 169ab90..bf3b632 100644
      <string name="RecentlyUsed">Recently Used</string>
      <string name="PopularReactions">Popular</string>
      <string name="EmojiPackCollectibles">Collectibles</string>
-@@ -6700,6 +6812,8 @@
+@@ -6706,6 +6818,8 @@
      <string name="TimerPeriodHint">Choose how long the media will be kept after opening.</string>
      <string name="TimerPeriodDoNotDelete">Do Not Delete</string>
      <string name="TimerPeriodOnce">View Once</string>
@@ -18081,7 +18631,7 @@ index 169ab90..bf3b632 100644
      <string name="StoriesMovedToContacts">Stories of **%s** were moved to **Archive**.</string>
      <string name="StoriesMovedToDialogs">Stories of **%s** were moved to **Chats**.</string>
      <string name="StoryShared">Story shared</string>
-@@ -8595,6 +8709,7 @@
+@@ -8601,6 +8715,7 @@
      <string name="StarsGiveawaySentPopupInfo_one">Winners will receive a total of **%1$d Star**.</string>
      <string name="StarsGiveawaySentPopupInfo_other">Winners will receive a total of **%1$d Stars**.</string>
      <string name="WebEmpty">Webpage</string>
@@ -18089,7 +18639,7 @@ index 169ab90..bf3b632 100644
      <string name="WebErrorTitle">Oops...</string>
      <string name="WebErrorInfo">Failed to load page.</string>
      <string name="WebErrorInfoDomain">Failed to load **%s**.</string>
-@@ -9871,6 +9986,10 @@
+@@ -9903,6 +10018,10 @@
      <string name="StoriesCollage">Combine into Collage</string>
      <string name="HintViewStoriesMultiple_one">Tap here to view your %d story</string>
      <string name="HintViewStoriesMultiple_other">Tap here to view your %d stories</string>
@@ -18100,7 +18650,7 @@ index 169ab90..bf3b632 100644
      <string name="CreateMultipleStories">Create Multiple Stories</string>
      <string name="WebsiteSays">%s says</string>
      <string name="SuggestedMessageDecline">Decline</string>
-@@ -10913,6 +11032,9 @@
+@@ -10945,6 +11064,9 @@
      <string name="AIEditorTabStyle">Style</string>
      <string name="AIEditorTabFix">Fix</string>
      <string name="AIEditorApply">Apply</string>
@@ -18110,7 +18660,7 @@ index 169ab90..bf3b632 100644
      <string name="AIEditorLimitButton">Increase Limit</string>
      <string name="AIEditorLimitTitle">Daily Limit Reached</string>
      <string name="AIEditorLimitText">Get **Telegram Premium** for **50x** more AI text transformation per day.</string>
-@@ -11206,6 +11328,22 @@
+@@ -11238,6 +11360,22 @@
      <string name="ArticleCommandVideo">Video</string>
      <string name="ArticleCommandAudio">Audio</string>
      <string name="ArticleCommandMap">Map</string>
@@ -18133,7 +18683,7 @@ index 169ab90..bf3b632 100644
      <string name="ArticleAlignment">Alignment</string>
      <string name="ArticleRemoveHighlight">Remove Highlight</string>
      <string name="ArticleHighlightCell">Highlight Cell</string>
-@@ -11332,6 +11470,7 @@
+@@ -11379,6 +11517,7 @@
      <string name="WalletTransferStatusReceived">received</string>
      <string name="WalletBack">Back</string>
      <string name="WalletCurrency">Currency</string>

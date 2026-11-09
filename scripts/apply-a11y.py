@@ -114,7 +114,7 @@ def _port_mehran_rejects(rejects):
 def apply_mehran_patch() -> None:
     """Apply the bundled accessibility patch of the mehranlatifi83/Telegram fork.
 
-    It was produced against upstream 12.10.6 (f2908b14) and touches only
+    It was produced from the fork's 13.1.1 release, against Telegram 13.1.1 (commit 3de37c8c), and touches only
     TMessagesProj/src/main. When upstream has moved a little, parts for files that no longer exist are skipped
     and a few known hunks are redone by hand; if anything else no longer fits, this stops the build with a clear
     message instead of producing an app that silently lacks half of the features.
@@ -158,7 +158,7 @@ def apply_mehran_patch() -> None:
             print(r.stdout[-3000:], file=sys.stderr)
             raise SystemExit(
                 "ERROR: upstream Telegram changed too much for mehran-a11y.patch (%d rejected hunks: %s). "
-                "Pin the clone to the tested commit f2908b14 or regenerate the patch." % (len(rejects), ", ".join(rejects[:5])))
+                "Pin the clone to the tested commit 3de37c8c (Telegram 13.1.1) or regenerate the patch." % (len(rejects), ", ".join(rejects[:5])))
         print("mehran-a11y.patch applied with fuzz (patch -F3)")
     marker.write_text("ok\n")
 
