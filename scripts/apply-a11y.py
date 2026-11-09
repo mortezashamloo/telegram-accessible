@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply accessibility patches to cloned Telegram tree (12.10.6 baseline) (cwd parent of telegram/).
+"""Apply accessibility patches to cloned Telegram tree (13.2.1 baseline, build 7291) (cwd parent of telegram/).
 
 Step 0 applies scripts/mehran-a11y.patch: the accessibility work of the
 mehranlatifi83/Telegram fork (12.10.5 release), MINUS its download/upload percentage
@@ -114,7 +114,7 @@ def _port_mehran_rejects(rejects):
 def apply_mehran_patch() -> None:
     """Apply the bundled accessibility patch of the mehranlatifi83/Telegram fork.
 
-    It was produced from the fork's 13.1.1 release, against Telegram 13.1.1 (commit 3de37c8c), and touches only
+    It was regenerated for Telegram 13.2.1 (commit 7be672ead283) and touches only
     TMessagesProj/src/main. When upstream has moved a little, parts for files that no longer exist are skipped
     and a few known hunks are redone by hand; if anything else no longer fits, this stops the build with a clear
     message instead of producing an app that silently lacks half of the features.
@@ -158,7 +158,7 @@ def apply_mehran_patch() -> None:
             print(r.stdout[-3000:], file=sys.stderr)
             raise SystemExit(
                 "ERROR: upstream Telegram changed too much for mehran-a11y.patch (%d rejected hunks: %s). "
-                "Pin the clone to the tested commit 3de37c8c (Telegram 13.1.1) or regenerate the patch." % (len(rejects), ", ".join(rejects[:5])))
+                "Pin the clone to the tested commit 7be672ead283 (Telegram 13.2.1) or regenerate the patch." % (len(rejects), ", ".join(rejects[:5])))
         print("mehran-a11y.patch applied with fuzz (patch -F3)")
     marker.write_text("ok\n")
 
@@ -3174,6 +3174,28 @@ def _gate_once(path: Path, old: str, new: str, label: str) -> None:
     print("%s OK" % label)
 
 
+def _gate_once_any(path: Path, pairs, label: str) -> None:
+    """_gate_once over several (old, new) anchors; the first that fits once wins.
+
+    Telegram 13.2.1 moved some of the touched lines (ThemeBind backgrounds, the
+    simple action bar), so each site carries both the 13.1.1 and the 13.2.1 shape.
+    """
+    if not path.exists():
+        print("WARN: %s missing (%s)" % (path.name, label))
+        return
+    t = path.read_text(encoding="utf-8")
+    for old, new in pairs:
+        if new in t:
+            print("%s already patched" % label)
+            return
+        if t.count(old) == 1:
+            path.write_text(t.replace(old, new, 1), encoding="utf-8")
+            print("%s OK" % label)
+            return
+    counts = [t.count(old) for old, _ in pairs]
+    print("WARN: %s anchor found %s in %s" % (label, "/".join(map(str, counts)), path.name))
+
+
 def patch_album_and_user_status_switches() -> None:
     """Two Accessible Settings switches, both default OFF, for features the fork turns on always.
 
@@ -3307,15 +3329,30 @@ def patch_audit_unlabeled_buttons() -> None:
     inside a row, or sits in commented-out code, so it is left alone.
     """
     bl = JAVA / "org/telegram/ui/Business/BusinessLinksActivity.java"
-    _gate_once(
+    _gate_once_any(
         bl,
-        "            imageView.setBackground(Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)));\n"
-        "            imageView.setOnClickListener(view -> {\n"
-        "                if (businessLink != null) {\n",
-        "            imageView.setBackground(Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)));\n"
-        "            imageView.setContentDescription(LocaleController.getString(R.string.CopyLink)); // a11y-fork: label\n"
-        "            imageView.setOnClickListener(view -> {\n"
-        "                if (businessLink != null) {\n",
+        [
+            # Telegram 13.1.1 shape
+            (
+            "            imageView.setBackground(Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)));\n"
+            "            imageView.setOnClickListener(view -> {\n"
+            "                if (businessLink != null) {\n",
+            "            imageView.setBackground(Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)));\n"
+            "            imageView.setContentDescription(LocaleController.getString(R.string.CopyLink)); // a11y-fork: label\n"
+            "            imageView.setOnClickListener(view -> {\n"
+            "                if (businessLink != null) {\n",
+            ),
+            # Telegram 13.2.1 shape: the background goes through ThemeBind.fillBackground
+            (
+            "            ThemeBind.fillBackground(imageView, Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)), ThemeBind.of(Theme.key_featuredStickers_addButton));\n"
+            "            imageView.setOnClickListener(view -> {\n"
+            "                if (businessLink != null) {\n",
+            "            ThemeBind.fillBackground(imageView, Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)), ThemeBind.of(Theme.key_featuredStickers_addButton));\n"
+            "            imageView.setContentDescription(LocaleController.getString(R.string.CopyLink)); // a11y-fork: label\n"
+            "            imageView.setOnClickListener(view -> {\n"
+            "                if (businessLink != null) {\n",
+            ),
+        ],
         "BusinessLinksActivity copy link button label")
     delegate_tpl = (
         "{indent}dayNightItem.setAccessibilityDelegate(new android.view.View.AccessibilityDelegate() {{ // a11y-fork: label\n"
@@ -3326,9 +3363,20 @@ def patch_audit_unlabeled_buttons() -> None:
         "{indent}    }}\n"
         "{indent}}});\n")
     cc = JAVA / "org/telegram/ui/ChannelColorActivity.java"
-    a = "        dayNightItem = actionBar.createMenu().addItem(1, sunDrawable);\n"
-    _gate_once(cc, a, a + delegate_tpl.format(indent="        ", dark="isDark"),
-               "ChannelColorActivity day/night button label")
+    _gate_once_any(cc, [
+        # Telegram 13.1.1 shape
+        (
+        "        dayNightItem = actionBar.createMenu().addItem(1, sunDrawable);\n",
+        "        dayNightItem = actionBar.createMenu().addItem(1, sunDrawable);\n"
+        + delegate_tpl.format(indent="        ", dark="isDark"),
+        ),
+        # Telegram 13.2.1 shape: the item may come from the simple action bar
+        (
+        "        dayNightItem = simpleActionBar != null ? simpleActionBar.createMenu().addItem(1, sunDrawable) : actionBar.createMenu().addItem(1, sunDrawable);\n",
+        "        dayNightItem = simpleActionBar != null ? simpleActionBar.createMenu().addItem(1, sunDrawable) : actionBar.createMenu().addItem(1, sunDrawable);\n"
+        + delegate_tpl.format(indent="        ", dark="isDark"),
+        ),
+    ], "ChannelColorActivity day/night button label")
     cw = JAVA / "org/telegram/ui/ChannelWallpaperActivity.java"
     b = "            dayNightItem = actionBar.createMenu().addItem(1, sunDrawable);\n"
     _gate_once(cw, b, b + delegate_tpl.format(indent="            ", dark="isDark()"),
