@@ -133,7 +133,7 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           accept-android-sdk-licenses: true
-          packages: 'platform-tools build-tools;35.0.0 platforms;android-35'
+          packages: 'platform-tools build-tools;36.0.0 platforms;android-36'
 
       # a11y-fork: cache Android NDK + CMake — downloading these is one of
       # the slowest parts of the job.
@@ -149,7 +149,7 @@ jobs:
       - name: Install SDK components
         run: |
           set -e
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
           if [ ! -d "$ANDROID_HOME/ndk/27.2.12479018" ]; then
             sdkmanager --install "ndk;27.2.12479018"
           else
@@ -240,6 +240,24 @@ jobs:
 
           if [ -f "$PWD/patches-repo/scripts/slim-arm64.py" ]; then
             python3 "$PWD/patches-repo/scripts/slim-arm64.py" || true
+          fi
+
+      # Telegram 13.2.2 renders widgets through the twidget submodule. The 13.2.2 patch
+      # switches its URL in .gitmodules to mehranlatifi83's fork, which carries the
+      # accessibility changes (upstream's twidget has none). `git apply` cannot move a
+      # submodule's gitlink itself, so the fork's renderer is fetched and checked out here.
+      - name: Point the twidget submodule at the fork's accessible renderer
+        run: |
+          set -e
+          cd telegram
+          git submodule sync --recursive || true
+          git submodule update --init --recursive --depth 1 || git submodule update --init --recursive || true
+          cd TMessagesProj/jni/twidget/twidget
+          if git fetch --depth 1 origin c372d2dc29c1420b6b9f537f402f2f62a70b47a9; then
+            git checkout -q c372d2dc29c1420b6b9f537f402f2f62a70b47a9
+            echo "twidget: the fork's accessible renderer (c372d2dc) is checked out"
+          else
+            echo "WARN: could not fetch the fork's twidget; the build keeps the renderer already on disk"
           fi
 
       - name: Unique package id + private signing (Play Protect)
