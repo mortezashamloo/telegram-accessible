@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK (3 versions)
 
 on:
   workflow_dispatch:
@@ -32,20 +32,15 @@ on:
         default: '21f7d109da6ab3506c9e9577f98c6a38771ab335'
         required: false
 
+# needed to create the release and upload the APKs to it
+permissions:
+  contents: write
+
 jobs:
-  build:
+  # Runs first and quickly: a wrong or already used release tag is found now, not after the long builds.
+  check:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
-    permissions:
-      contents: write
-
     steps:
-      - name: Checkout this repo
-        uses: actions/checkout@v4
-        with:
-          path: patches-repo
-
-      # Check the release settings first, so a wrong or already used tag is found now and not after the long build.
       - name: Check release settings
         if: ${{ inputs.create_release == 'Yes' }}
         env:
@@ -71,6 +66,28 @@ jobs:
             exit 1
           fi
           echo "Release tag '$TAG' is free."
+
+  # Three builds in parallel: universal (all CPU types), arm64-v8a ("arm8a") and armeabi-v7a ("arm7").
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: universal
+            abi: ''
+          - name: arm64-v8a
+            abi: 'arm64-v8a'
+          - name: armeabi-v7a
+            abi: 'armeabi-v7a'
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+        with:
+          path: patches-repo
 
       # a11y-fork: cache key based on patch scripts, so a changed
       # apply-a11y.py / patches/* invalidates the Telegram clone cache.
@@ -125,7 +142,7 @@ jobs:
           fi
 
       - name: Save clean Telegram clone to cache
-        if: steps.cache_telegram.outputs.cache-hit != 'true'
+        if: steps.cache_telegram.outputs.cache-hit != 'true' && matrix.name == 'universal'
         uses: actions/cache/save@v4
         with:
           path: telegram
@@ -197,10 +214,10 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
             telegram/.gradle
-          key: gradle-${{ runner.os }}-${{ steps.patches_key.outputs.key }}-${{ hashFiles('telegram/gradle/wrapper/gradle-wrapper.properties') }}
+          key: gradle-${{ runner.os }}-${{ matrix.name }}-${{ steps.patches_key.outputs.key }}-${{ hashFiles('telegram/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
-            gradle-${{ runner.os }}-${{ steps.patches_key.outputs.key }}-
-            gradle-${{ runner.os }}-
+            gradle-${{ runner.os }}-${{ matrix.name }}-${{ steps.patches_key.outputs.key }}-
+            gradle-${{ runner.os }}-${{ matrix.name }}-
 
       - name: Inject API credentials
         env:
@@ -252,9 +269,7 @@ jobs:
           done
 
           python3 patches-repo/scripts/apply-a11y.py
-          if [ -f "$PWD/patches-repo/scripts/slim-arm64.py" ]; then
-            python3 "$PWD/patches-repo/scripts/slim-arm64.py" || true
-          fi
+          # slim-arm64.py is not run here: the CPU type of each build is chosen by the matrix below
 
       - name: Unique package id + private signing (Play Protect)
         env:
@@ -308,6 +323,41 @@ jobs:
           PY
           grep -n "^APP_PACKAGE" telegram/gradle.properties
 
+      - name: Warn if there is no fixed signing key
+        env:
+          A11Y_KEYSTORE_BASE64: ${{ secrets.A11Y_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$A11Y_KEYSTORE_BASE64" ]; then
+            echo "::warning::A11Y_KEYSTORE_BASE64 is not set, so each of the three builds may be signed with a different key and you could not update from one to another. Save the keystore as that secret first."
+          fi
+
+      # Builds for one CPU type only: the app module keeps just that ABI, and the native library is built for it only.
+      - name: Limit this build to one CPU type
+        if: ${{ matrix.abi != '' }}
+        env:
+          ABI: ${{ matrix.abi }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          abi = os.environ["ABI"]
+          app = "telegram/TMessagesProj_App/build.gradle"
+          t = open(app, encoding="utf-8").read()
+          old = 'abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"'
+          if t.count(old) < 1:
+              raise SystemExit("ERROR: the abiFilters line was not found in TMessagesProj_App/build.gradle (Telegram changed it)")
+          open(app, "w", encoding="utf-8").write(t.replace(old, 'abiFilters "%s"' % abi))
+          print("app module: only", abi)
+          lib = "telegram/TMessagesProj/build.gradle"
+          s = open(lib, encoding="utf-8").read()
+          m = re.search(r"^([ \t]*)arguments '-DANDROID_STL=c\+\+_static'[^\n]*\n", s, re.M)
+          if m:
+              s = s[:m.end()] + m.group(1) + 'abiFilters "%s"\n' % abi + s[m.end():]
+              open(lib, "w", encoding="utf-8").write(s)
+              print("native library: only", abi)
+          else:
+              print("NOTE: the native build line was not found; the library is built for every CPU type and only", abi, "is packaged")
+          PY
+
       - name: Build APK
         working-directory: telegram
         run: |
@@ -336,9 +386,24 @@ jobs:
           echo "path=$APK" >> "$GITHUB_OUTPUT"
           echo "Found APK: $APK"
           ls -lh "$APK"
+          mkdir -p dist
+          cp "$APK" "dist/telegram-accessible-${{ matrix.name }}.apk"
+          echo "$BUILD_VARIANT" > "dist/variant-${{ matrix.name }}.txt"
+
+      - name: Check the CPU types inside the APK
+        env:
+          WANT: ${{ matrix.abi }}
+        run: |
+          set -e
+          FOUND=$(unzip -l "dist/telegram-accessible-${{ matrix.name }}.apk" | grep -oE 'lib/(armeabi-v7a|arm64-v8a|x86_64|x86)/' | sort -u | sed 's#lib/##; s#/##' | tr '\n' ' ')
+          echo "CPU types in this APK: $FOUND"
+          if [ -n "$WANT" ] && [ "$FOUND" != "$WANT " ]; then
+            echo "ERROR: this build should contain only $WANT but contains: $FOUND"
+            exit 1
+          fi
 
       - name: Prepare Keystore File for Artifact
-        if: always()
+        if: ${{ always() && matrix.name == 'universal' }}
         run: |
           mkdir -p telegram/TMessagesProj/config
           KEYSTORE_FILE=$(find telegram -name "*.keystore" 2>/dev/null | head -n 1)
@@ -351,7 +416,7 @@ jobs:
           fi
 
       - name: Upload keystore (save once as secret for updates)
-        if: always()
+        if: ${{ always() && matrix.name == 'universal' }}
         uses: actions/upload-artifact@v4
         with:
           name: a11y-release-keystore
@@ -362,22 +427,33 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: telegram-accessible-arm64
-          path: ${{ steps.apk.outputs.path }}
+          name: telegram-accessible-${{ matrix.name }}
+          path: dist/*
           if-no-files-found: error
           retention-days: 14
 
-      # Only when create_release = Yes: make the release and attach the APK, no manual upload needed.
-      - name: Create GitHub Release
-        if: ${{ inputs.create_release == 'Yes' }}
+  # Only when create_release = Yes and all three builds worked: one release with the three APKs.
+  release:
+    needs: build
+    if: ${{ inputs.create_release == 'Yes' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the three APKs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: telegram-accessible-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release with the APKs
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag_name }}
           RELEASE_TITLE: ${{ inputs.release_title }}
           RELEASE_NOTES: ${{ inputs.release_description }}
-          APK_PATH: ${{ steps.apk.outputs.path }}
         run: |
           set -e
+          ls -l dist
           TAG="$RELEASE_TAG"
           if [ -z "$TAG" ]; then
             TAG="v${GITHUB_RUN_NUMBER}"
@@ -389,16 +465,29 @@ jobs:
           # a typed \n becomes a real new line
           NOTES="${RELEASE_NOTES//\\n/$'\n'}"
           if [ -z "$NOTES" ]; then
-            NOTES="Automatic build release."
+            NOTES="Automatic build release."$'\n\n'"Which file? arm64-v8a: most phones made from about 2017 on. armeabi-v7a: older 32-bit phones. universal: works on every phone (bigger file)."
           fi
+          FILES=()
+          DEBUG=""
+          for NAME in universal arm64-v8a armeabi-v7a; do
+            SRC="dist/telegram-accessible-${NAME}.apk"
+            if [ ! -f "$SRC" ]; then
+              echo "ERROR: $SRC is missing"
+              exit 1
+            fi
+            OUT="telegram-accessible-${TAG}-${NAME}.apk"
+            cp "$SRC" "$OUT"
+            FILES+=("$OUT")
+            if grep -q debug "dist/variant-${NAME}.txt" 2>/dev/null; then
+              DEBUG="$DEBUG $NAME"
+            fi
+          done
           EXTRA=()
-          if [ "$BUILD_VARIANT" = "debug" ]; then
-            NOTES="$NOTES"$'\n\n'"Note: the release build failed, so this APK is a debug build."
+          if [ -n "$DEBUG" ]; then
+            NOTES="$NOTES"$'\n\n'"Note: the release build failed for:$DEBUG, so those APKs are debug builds."
             EXTRA+=(--prerelease)
           fi
-          FILE="telegram-accessible-${TAG}.apk"
-          cp "$APK_PATH" "$FILE"
-          gh release create "$TAG" "$FILE" \
+          gh release create "$TAG" "${FILES[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "$TITLE" \
