@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply accessibility patches to cloned Telegram tree (13.2.1 baseline, build 7291) (cwd parent of telegram/).
+"""Apply accessibility patches to cloned Telegram tree (12.10.6 baseline) (cwd parent of telegram/).
 
 Step 0 applies scripts/mehran-a11y.patch: the accessibility work of the
 mehranlatifi83/Telegram fork (12.10.5 release), MINUS its download/upload percentage
@@ -114,7 +114,7 @@ def _port_mehran_rejects(rejects):
 def apply_mehran_patch() -> None:
     """Apply the bundled accessibility patch of the mehranlatifi83/Telegram fork.
 
-    It was regenerated for Telegram 13.2.2 (commit 21f7d109da6ab) and touches only
+    It was produced from the fork's 13.2.2 release, against Telegram 13.2.2 (commit 21f7d109), and touches only
     TMessagesProj/src/main. When upstream has moved a little, parts for files that no longer exist are skipped
     and a few known hunks are redone by hand; if anything else no longer fits, this stops the build with a clear
     message instead of producing an app that silently lacks half of the features.
@@ -158,7 +158,7 @@ def apply_mehran_patch() -> None:
             print(r.stdout[-3000:], file=sys.stderr)
             raise SystemExit(
                 "ERROR: upstream Telegram changed too much for mehran-a11y.patch (%d rejected hunks: %s). "
-                "Pin the clone to the tested commit 21f7d109da6ab (Telegram 13.2.2) or regenerate the patch." % (len(rejects), ", ".join(rejects[:5])))
+                "Pin the clone to the tested commit 21f7d109 (Telegram 13.2.2) or regenerate the patch." % (len(rejects), ", ".join(rejects[:5])))
         print("mehran-a11y.patch applied with fuzz (patch -F3)")
     marker.write_text("ok\n")
 
@@ -684,6 +684,150 @@ def _patch_a11y_string_resources() -> None:
             continue
         for name, value in values.items():
             _set_string(path, name, value)
+
+
+def patch_provider_port() -> None:
+    """Telegram 13.2 / the fork 13.2.2 moved the accessibility node provider of a message out of ChatMessageCell
+    into its own class, ChatMessageAccessibilityNodeProvider, which reaches the cell as `cell.`. The steps that
+    edited the provider while it was still inside ChatMessageCell are redone here for the new file:
+    the real document filename, "Message options" as the long-press label, the admin-tag and
+    download-state switches, the touch sound for a part of a message, the long-clickable flags, and a
+    long press on any part of a message opening Message options."""
+    prov = JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java"
+    if not prov.exists():
+        return
+    t = prov.read_text(encoding="utf-8")
+    marker = "a11y-fork: provider port"
+    if marker in t:
+        print("ChatMessageAccessibilityNodeProvider already patched")
+        return
+    ok = []
+
+    def exact(label, old, new):
+        nonlocal t
+        n = t.count(old)
+        if n != 1:
+            print("WARN: provider %s anchor found %d times" % (label, n))
+            return
+        t = t.replace(old, new, 1)
+        ok.append(label)
+
+    def regex(label, pat, builder):
+        nonlocal t
+        found = list(re.finditer(pat, t))
+        if len(found) != 1:
+            print("WARN: provider %s anchor found %d times" % (label, len(found)))
+            return
+        t = re.sub(pat, builder, t, count=1)
+        ok.append(label)
+
+    # 1) the real document filename, one clean "File: <name>"
+    regex("document name",
+          r"(?m)^([ \t]*)if \(cell\.documentAttach != null && cell\.documentAttachType == ChatMessageCell\.DOCUMENT_ATTACH_TYPE_DOCUMENT\) \{\n"
+          r"[ \t]*String fileName = FileLoader\.getAttachFileName\(cell\.documentAttach\);\n"
+          r"[ \t]*if \(fileName\.indexOf\('\.'\) != -1\) \{\n"
+          r"[^\n]*\n[ \t]*\}\n[ \t]*\}\n",
+          lambda m: (
+              m.group(1) + "if (cell.documentAttach != null && cell.documentAttachType == ChatMessageCell.DOCUMENT_ATTACH_TYPE_DOCUMENT) {\n"
+              + m.group(1) + "    // a11y-fork: real document filename -- one \"File: <n>\"; when Telegram's own messageText below would\n"
+              + m.group(1) + "    // read the same filename again, say only \"File:\" here and let that text supply the name once\n"
+              + m.group(1) + "    String a11yDocumentName = FileLoader.getDocumentFileName(cell.documentAttach);\n"
+              + m.group(1) + "    if (!TextUtils.isEmpty(a11yDocumentName)) {\n"
+              + m.group(1) + "        boolean a11yNameWillRepeat = !TextUtils.isEmpty(cell.currentMessageObject.messageText)\n"
+              + m.group(1) + "                && cell.currentMessageObject.messageText.toString().trim().equals(a11yDocumentName.trim());\n"
+              + m.group(1) + "        sb.append(getString(R.string.A11yFileLabel));\n"
+              + m.group(1) + "        sb.append(\": \");\n"
+              + m.group(1) + "        if (!a11yNameWillRepeat) {\n"
+              + m.group(1) + "            sb.append(a11yDocumentName);\n"
+              + m.group(1) + "            sb.append(\". \");\n"
+              + m.group(1) + "        }\n"
+              + m.group(1) + "    }\n"
+              + m.group(1) + "}\n"))
+
+    # 2) the long-press label on a message says "Message options", not "enter selection mode"
+    old_lbl = 'info.addAction(new AccessibilityNodeInfo.AccessibilityAction(AccessibilityNodeInfo.ACTION_LONG_CLICK, getString("AccActionEnterSelectionMode", R.string.AccActionEnterSelectionMode)));'
+    new_lbl = 'info.addAction(new AccessibilityNodeInfo.AccessibilityAction(AccessibilityNodeInfo.ACTION_LONG_CLICK, getString("AccActionMessageOptions", R.string.AccActionMessageOptions)));'
+    if old_lbl in t:
+        t = t.replace(old_lbl, new_lbl)
+        ok.append("long-press label")
+    else:
+        print("WARN: provider long-press label anchor not found")
+
+    # 3) admin / group tag switch (default OFF)
+    exact("admin tag switch",
+          "final CharSequence adminText = cell.getAdminAccessibilityText();",
+          "final CharSequence adminText = org.telegram.messenger.A11yConfig.getAdminTagAnnounce() ? cell.getAdminAccessibilityText() : null; // a11y-fork: setting (default OFF)")
+
+    # 4) "Downloaded / not downloaded" only when the setting is on
+    regex("download-state setting",
+          r"(?m)^([ \t]*)if \(cell\.hasAccessibilityDownloadState\(\)\) \{\n",
+          lambda m: m.group(1) + "if (cell.hasAccessibilityDownloadState() && org.telegram.messenger.A11yConfig.getAnnounceDownloadState()) { // a11y-fork: setting\n")
+
+    # 5) touch sound for a tap on a part of a message
+    regex("tap sound (parts of a message)",
+          r"(?m)^([ \t]*)\} else if \(action == AccessibilityNodeInfo\.ACTION_CLICK\) \{\n([ \t]*)if \(virtualViewId == PROFILE\) \{\n",
+          lambda m: (m.group(1) + "} else if (action == AccessibilityNodeInfo.ACTION_CLICK) {\n"
+                     + m.group(2) + "org.telegram.messenger.A11yConfig.playChatOpenSound(); // a11y-fork: touch sound for a tap on a part of a message\n"
+                     + m.group(2) + "if (virtualViewId == PROFILE) {\n"))
+
+    # 6) the message node says it is long-clickable (TalkBack's long-press sound)
+    regex("host node long-clickable flag",
+          r"(?m)^([ \t]*)info\.setEnabled\(true\);\n([ \t]*)AccessibilityNodeInfo\.CollectionItemInfo itemInfo = info\.getCollectionItemInfo\(\);\n",
+          lambda m: (m.group(1) + "info.setEnabled(true);\n"
+                     + m.group(1) + "info.setLongClickable(true); // a11y-fork: TalkBack long-press sound\n"
+                     + m.group(2) + "AccessibilityNodeInfo.CollectionItemInfo itemInfo = info.getCollectionItemInfo();\n"))
+
+    # 7) every part of a message (reply, forward, links, buttons ...) answers a long press and says so
+    regex("every node long-click",
+          r"(?m)^([ \t]*)@Override\n([ \t]*)public AccessibilityNodeInfo createAccessibilityNodeInfo\(int virtualViewId\) \{\n",
+          lambda m: (
+              m.group(1) + "// " + marker + ": every part of a message answers a long press (Message options) and says it can\n"
+              + m.group(1) + "@Override\n"
+              + m.group(2) + "public AccessibilityNodeInfo createAccessibilityNodeInfo(int virtualViewId) {\n"
+              + m.group(2) + "    final AccessibilityNodeInfo a11yInfo = a11yCreateAccessibilityNodeInfo(virtualViewId);\n"
+              + m.group(2) + "    if (a11yInfo != null && virtualViewId != HOST_VIEW_ID) {\n"
+              + m.group(2) + "        boolean a11yHasLong = false;\n"
+              + m.group(2) + "        try {\n"
+              + m.group(2) + "            for (AccessibilityNodeInfo.AccessibilityAction a11yAction : a11yInfo.getActionList()) {\n"
+              + m.group(2) + "                if (a11yAction.getId() == AccessibilityNodeInfo.ACTION_LONG_CLICK) {\n"
+              + m.group(2) + "                    a11yHasLong = true;\n"
+              + m.group(2) + "                    break;\n"
+              + m.group(2) + "                }\n"
+              + m.group(2) + "            }\n"
+              + m.group(2) + "        } catch (Throwable ignore) {\n"
+              + m.group(2) + "        }\n"
+              + m.group(2) + "        if (!a11yHasLong) {\n"
+              + m.group(2) + "            a11yInfo.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);\n"
+              + m.group(2) + "        }\n"
+              + m.group(2) + "        a11yInfo.setLongClickable(true); // a11y-fork: TalkBack long-press sound\n"
+              + m.group(2) + "    }\n"
+              + m.group(2) + "    return a11yInfo;\n"
+              + m.group(2) + "}\n\n"
+              + m.group(2) + "private AccessibilityNodeInfo a11yCreateAccessibilityNodeInfo(int virtualViewId) {\n"))
+
+    # 8) a long press on a part of a message opens Message options (poll buttons and channel recommendations
+    #    keep the fork's own long-press handling)
+    regex("long-press routing",
+          r"(?m)^([ \t]*)if \(virtualViewId == HOST_VIEW_ID\) \{\n([ \t]*)cell\.performAccessibilityAction\(action, arguments\);\n([ \t]*)\} else \{\n",
+          lambda m: (
+              m.group(1) + "if (virtualViewId == HOST_VIEW_ID) {\n"
+              + m.group(2) + "cell.performAccessibilityAction(action, arguments);\n"
+              + m.group(3) + "} else {\n"
+              + m.group(2) + "if (action == AccessibilityNodeInfo.ACTION_LONG_CLICK\n"
+              + m.group(2) + "        && (virtualViewId < POLL_BUTTONS_START || (virtualViewId >= BOT_BUTTONS_START && virtualViewId < RECOMMENDATIONS_START))) { // a11y-fork: long press on any part opens Message options\n"
+              + m.group(2) + "    try {\n"
+              + m.group(2) + "        if (cell.delegate != null && cell.currentMessageObject != null) {\n"
+              + m.group(2) + "            cell.delegate.didLongPress(cell, cell.getWidth() / 2f, cell.getHeight() / 2f);\n"
+              + m.group(2) + "            cell.sendAccessibilityEventForVirtualView(virtualViewId, AccessibilityEvent.TYPE_VIEW_LONG_CLICKED);\n"
+              + m.group(2) + "        }\n"
+              + m.group(2) + "    } catch (Throwable e) {\n"
+              + m.group(2) + "        org.telegram.messenger.FileLog.e(e);\n"
+              + m.group(2) + "    }\n"
+              + m.group(2) + "    return true;\n"
+              + m.group(2) + "}\n"))
+
+    prov.write_text(t, encoding="utf-8")
+    print("ChatMessageAccessibilityNodeProvider ported OK (%d of 8 parts: %s)" % (len(ok), ", ".join(ok)))
 
 
 def patch_a11y_localization() -> None:
@@ -2651,40 +2795,7 @@ def patch_file_description_spacing() -> None:
             "                    }")
         if old in t:
             t=t.replace(old,new,1); cmc.write_text(t,encoding="utf-8"); print("ChatMessageCell single clean \"file <name>\" announcement OK")
-        else:
-            np = JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java"
-            if np.exists():
-                npt = np.read_text(encoding="utf-8")
-                old_np = (
-                    "                if (cell.documentAttach != null && cell.documentAttachType == ChatMessageCell.DOCUMENT_ATTACH_TYPE_DOCUMENT) {\n"
-                    "                    String fileName = FileLoader.getAttachFileName(cell.documentAttach);\n"
-                    "                    if (fileName.indexOf('.') != -1) {\n"
-                    "                        sb.append(formatString(R.string.AccDescrDocumentType, fileName.substring(fileName.lastIndexOf('.') + 1).toUpperCase(Locale.ROOT)));\n"
-                    "                    }\n"
-                    "                }")
-                new_np = (
-                    "                if (cell.documentAttach != null && cell.documentAttachType == ChatMessageCell.DOCUMENT_ATTACH_TYPE_DOCUMENT) {\n"
-                    "                    // a11y-fork: real document filename -- single \"File: <name>\" announcement,\n"
-                    "                    // built as one literal Java string so \"File\" can never end up glued to the filename\n"
-                    "                    String a11yDocumentName = FileLoader.getDocumentFileName(cell.documentAttach);\n"
-                    "                    if (!TextUtils.isEmpty(a11yDocumentName)) {\n"
-                    "                        boolean a11yNameWillRepeat = !TextUtils.isEmpty(cell.currentMessageObject.messageText)\n"
-                    "                                && cell.currentMessageObject.messageText.toString().trim().equals(a11yDocumentName.trim());\n"
-                    "                        sb.append(getString(R.string.A11yFileLabel));\n"
-                    "                        sb.append(\": \");\n"
-                    "                        if (!a11yNameWillRepeat) {\n"
-                    "                            sb.append(a11yDocumentName);\n"
-                    "                            sb.append(\". \");\n"
-                    "                        }\n"
-                    "                    }\n"
-                    "                }")
-                if old_np in npt:
-                    np.write_text(npt.replace(old_np, new_np, 1), encoding="utf-8")
-                    print("ChatMessageCell single clean \"file <name>\" announcement OK (provider)")
-                else:
-                    print("WARN: ChatMessageCell document accessibility anchor not found")
-            else:
-                print("WARN: ChatMessageCell document accessibility anchor not found")
+        else: print("ChatMessageCell document block: it is in the provider file (done by patch_provider_port)" if _provider_split() else "WARN: ChatMessageCell document accessibility anchor not found")
     else:
         cmc.write_text(t,encoding="utf-8")
         print("ChatMessageCell real document filename already patched")
@@ -2741,45 +2852,16 @@ def patch_chat_message_cell_accessibility_long_click() -> None:
         "                    return true;\n"
         "                }\n"
     )
-    if prov in t:
-        t = t.replace(prov, prov_new, 1)
-        cmc.write_text(t, encoding="utf-8")
-        print("ChatMessageCell accessibility long-click v2 OK")
-        return
-    cmc.write_text(t, encoding="utf-8")
-    np = JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java"
-    if np.exists():
-        npt = np.read_text(encoding="utf-8")
-        prov_np = (
-            "        if (virtualViewId == HOST_VIEW_ID) {\n"
-            "            cell.performAccessibilityAction(action, arguments);\n"
-            "        } else {\n"
-            "            if (action == AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS) {\n")
-        prov_np_new = (
-            "        if (virtualViewId == HOST_VIEW_ID) {\n"
-            "            cell.performAccessibilityAction(action, arguments);\n"
-            "        } else {\n"
-            "            // " + marker + " virtual node\n"
-            "            if (action == AccessibilityNodeInfo.ACTION_LONG_CLICK) {\n"
-            "                try {\n"
-            "                    if (cell.delegate != null && cell.currentMessageObject != null) {\n"
-            "                        // the reply / forward header is part of the message, not a place of its own:\n"
-            "                        // a long press there must open the message options, at the middle of the message\n"
-            "                        cell.delegate.didLongPress(cell, cell.getWidth() / 2f, cell.getHeight() / 2f);\n"
-            "                        cell.sendAccessibilityEventForVirtualView(virtualViewId, AccessibilityEvent.TYPE_VIEW_LONG_CLICKED);\n"
-            "                        return true;\n"
-            "                    }\n"
-            "                } catch (Throwable e) { org.telegram.messenger.FileLog.e(e); }\n"
-            "                return true;\n"
-            "            }\n"
-            "            if (action == AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS) {\n")
-        if prov_np in npt:
-            np.write_text(npt.replace(prov_np, prov_np_new, 1), encoding="utf-8")
-            print("ChatMessageCell accessibility long-click v2 OK (provider)")
-        else:
-            print("WARN: provider long-click anchor missing")
-    else:
+    if prov not in t:
+        if _provider_split():
+            cmc.write_text(t, encoding="utf-8")
+            print("ChatMessageCell accessibility long-click v2 OK (host node; the virtual nodes are in the provider file)")
+            return
         print("WARN: provider long-click anchor missing")
+        return
+    t = t.replace(prov, prov_new, 1)
+    cmc.write_text(t, encoding="utf-8")
+    print("ChatMessageCell accessibility long-click v2 OK")
 
 def patch_fork_selection_vs_options() -> None:
     """Reconcile the fork's message-selection actions with this project's Message Options.
@@ -2819,14 +2901,7 @@ def patch_fork_selection_vs_options() -> None:
     if old_lbl in t:
         t = t.replace(old_lbl, new_lbl, 1)
     else:
-        np = JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java"
-        if np.exists():
-            npt = np.read_text(encoding="utf-8")
-            if old_lbl in npt:
-                np.write_text(npt.replace(old_lbl, new_lbl, 1), encoding="utf-8")
-            else:
-                print("WARN: fork long-click label anchor not found (selection vs options)")
-        else:
+        if not _provider_split():
             print("WARN: fork long-click label anchor not found (selection vs options)")
     cmc.write_text(t, encoding="utf-8")
     print("ChatMessageCell selection-vs-options OK")
@@ -3163,32 +3238,28 @@ def patch_reply_forward_long_click() -> None:
     jump to the replied message. The nodes now advertise LONG_CLICK, which the long-click
     patch routes to the Message Options menu (patch_chat_message_cell_accessibility_long_click).
     """
+    cmc = JAVA / "org/telegram/ui/Cells/ChatMessageCell.java"
+    if not cmc.exists():
+        print("WARN: ChatMessageCell missing (reply long-click)")
+        return
+    t = cmc.read_text(encoding="utf-8")
     marker = "// a11y-fork: reply-header long-click"
-    missed = {"REPLY": False, "FORWARD": False}
-    for f in (JAVA / "org/telegram/ui/Cells/ChatMessageCell.java",
-              JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java"):
-        if not f.exists():
+    if marker in t:
+        print("ChatMessageCell reply/forward long-click already patched")
+        return
+    done = 0
+    for node in ("REPLY", "FORWARD"):
+        pat = re.compile(r"(virtualViewId == " + node + r"\) \{\n\s+info\.setEnabled\(true\);.*?info\.addAction\(AccessibilityNodeInfo\.ACTION_CLICK\);)", re.S)
+        m = pat.search(t)
+        if not m or "rect.set(" not in t[m.end():m.end() + 200]:
+            print(("note: %s node is in the provider file (reply long-click)" if _provider_split() else "WARN: %s node anchor not found (reply long-click)") % node)
             continue
-        t = f.read_text(encoding="utf-8")
-        if marker in t:
-            missed.update({"REPLY": False, "FORWARD": False})
-            break
-        for node in ("REPLY", "FORWARD"):
-            pat = re.compile(r"(virtualViewId == " + node + r"\) \{\n\s+info\.setEnabled\(true\);.*?info\.addAction\(AccessibilityNodeInfo\.ACTION_CLICK\);)", re.S)
-            m = pat.search(t)
-            if not m or "rect.set(" not in t[m.end():m.end() + 200]:
-                missed[node] = True
-                continue
-            add = "\n                    info.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK); " + marker + " (" + node + ")"
-            t = t[:m.end()] + add + t[m.end():]
-            missed[node] = False
-            f.write_text(t, encoding="utf-8")
-    done_all = sum(1 for v in missed.values() if not v)
-    if done_all:
-        print("ChatMessageCell reply/forward header long-click OK (%d nodes)" % done_all)
-    for node, bad in missed.items():
-        if bad:
-            print("WARN: %s node anchor not found (reply long-click)" % node)
+        add = "\n                    info.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK); " + marker + " (" + node + ")"
+        t = t[:m.end()] + add + t[m.end():]
+        done += 1
+    if done:
+        cmc.write_text(t, encoding="utf-8")
+        print("ChatMessageCell reply/forward header long-click OK (%d nodes)" % done)
 
 
 def patch_fork_quiet_download_state() -> None:
@@ -3215,20 +3286,7 @@ def patch_fork_quiet_download_state() -> None:
             cmc.write_text(t, encoding="utf-8")
             print("ChatMessageCell download-state setting OK")
         else:
-            np = JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java"
-            if np.exists():
-                npt = np.read_text(encoding="utf-8")
-                pat_np = re.compile(r"(\n[ \t]*)if \(cell\.hasAccessibilityDownloadState\(\)\) \{(\n[ \t]*sb\.append\(\", \"\);\n[ \t]*sb\.append\(getString\(mediaDownloaded \? R\.string\.AccDescrMediaDownloaded : R\.string\.AccDescrMediaNotDownloaded\)\);\n[ \t]*\})")
-                if "A11yConfig.getAnnounceDownloadState()" in npt:
-                    print("ChatMessageCell download-state setting already patched (provider)")
-                elif pat_np.search(npt):
-                    npt = pat_np.sub(lambda m: m.group(1) + "if (cell.hasAccessibilityDownloadState() && org.telegram.messenger.A11yConfig.getAnnounceDownloadState()) { // a11y-fork: setting" + m.group(2), npt, count=1)
-                    np.write_text(npt, encoding="utf-8")
-                    print("ChatMessageCell download-state setting OK (provider)")
-                else:
-                    print("WARN: ChatMessageCell permanent download-state block not found")
-            else:
-                print("WARN: ChatMessageCell permanent download-state block not found")
+            print("ChatMessageCell download-state block: it is in the provider file (done by patch_provider_port)" if _provider_split() else "WARN: ChatMessageCell permanent download-state block not found")
     sac = JAVA / "org/telegram/ui/Cells/SharedAudioCell.java"
     if sac.exists():
         t = sac.read_text(encoding="utf-8")
@@ -3249,6 +3307,12 @@ def patch_fork_quiet_download_state() -> None:
             print("WARN: SharedAudioCell appendAccessibilityDownloadState not found")
 
 
+def _provider_split() -> bool:
+    """True when Telegram 13.2 / the fork keep the accessibility node provider of a message in its own file
+    (ChatMessageAccessibilityNodeProvider) instead of inside ChatMessageCell."""
+    return (JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java").exists()
+
+
 def _gate_once(path: Path, old: str, new: str, label: str) -> None:
     """Replace `old` by `new` exactly once in `path`; print OK / already / WARN."""
     if not path.exists():
@@ -3259,32 +3323,13 @@ def _gate_once(path: Path, old: str, new: str, label: str) -> None:
         print("%s already patched" % label)
         return
     if t.count(old) != 1:
+        if t.count(old) == 0 and path.name == "ChatMessageCell.java" and _provider_split():
+            print("%s: the code is in ChatMessageAccessibilityNodeProvider (done by patch_provider_port)" % label)
+            return
         print("WARN: %s anchor found %d times in %s" % (label, t.count(old), path.name))
         return
     path.write_text(t.replace(old, new, 1), encoding="utf-8")
     print("%s OK" % label)
-
-
-def _gate_once_any(path: Path, pairs, label: str) -> None:
-    """_gate_once over several (old, new) anchors; the first that fits once wins.
-
-    Telegram 13.2.1 moved some of the touched lines (ThemeBind backgrounds, the
-    simple action bar), so each site carries both the 13.1.1 and the 13.2.1 shape.
-    """
-    if not path.exists():
-        print("WARN: %s missing (%s)" % (path.name, label))
-        return
-    t = path.read_text(encoding="utf-8")
-    for old, new in pairs:
-        if new in t:
-            print("%s already patched" % label)
-            return
-        if t.count(old) == 1:
-            path.write_text(t.replace(old, new, 1), encoding="utf-8")
-            print("%s OK" % label)
-            return
-    counts = [t.count(old) for old, _ in pairs]
-    print("WARN: %s anchor found %s in %s" % (label, "/".join(map(str, counts)), path.name))
 
 
 def patch_album_and_user_status_switches() -> None:
@@ -3299,28 +3344,17 @@ def patch_album_and_user_status_switches() -> None:
     """
     A = "org.telegram.messenger.A11yConfig"
     cmc = JAVA / "org/telegram/ui/Cells/ChatMessageCell.java"
-    _gate_once_any(
+    # the method is package-private once the provider is a class of its own (it calls cell.albumAccessibilityPlace())
+    _vis = "    private " if (cmc.exists() and "    private CharSequence albumAccessibilityPlace() {" in cmc.read_text(encoding="utf-8")) else "    "
+    _gate_once(
         cmc,
-        [
-            (
-                "    private CharSequence albumAccessibilityPlace() {\n"
-                "        if (currentMessageObject == null || currentMessagesGroup == null || currentPosition == null) {\n",
-                "    private CharSequence albumAccessibilityPlace() {\n"
-                "        if (!" + A + ".getAlbumReading()) { // a11y-fork: setting (default OFF = stock wording)\n"
-                "            return null;\n"
-                "        }\n"
-                "        if (currentMessageObject == null || currentMessagesGroup == null || currentPosition == null) {\n",
-            ),
-            (
-                "    CharSequence albumAccessibilityPlace() {\n"
-                "        if (currentMessageObject == null || currentMessagesGroup == null || currentPosition == null) {\n",
-                "    CharSequence albumAccessibilityPlace() {\n"
-                "        if (!" + A + ".getAlbumReading()) { // a11y-fork: setting (default OFF = stock wording)\n"
-                "            return null;\n"
-                "        }\n"
-                "        if (currentMessageObject == null || currentMessagesGroup == null || currentPosition == null) {\n",
-            ),
-        ],
+        _vis + "CharSequence albumAccessibilityPlace() {\n"
+        "        if (currentMessageObject == null || currentMessagesGroup == null || currentPosition == null) {\n",
+        _vis + "CharSequence albumAccessibilityPlace() {\n"
+        "        if (!" + A + ".getAlbumReading()) { // a11y-fork: setting (default OFF = stock wording)\n"
+        "            return null;\n"
+        "        }\n"
+        "        if (currentMessageObject == null || currentMessagesGroup == null || currentPosition == null) {\n",
         "ChatMessageCell album-reading switch")
     dc = JAVA / "org/telegram/ui/Cells/DialogCell.java"
     _gate_once(
@@ -3433,30 +3467,20 @@ def patch_audit_unlabeled_buttons() -> None:
     inside a row, or sits in commented-out code, so it is left alone.
     """
     bl = JAVA / "org/telegram/ui/Business/BusinessLinksActivity.java"
-    _gate_once_any(
+    _bl_t = bl.read_text(encoding="utf-8") if bl.exists() else ""
+    _bl_old = "            imageView.setBackground(Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)));\n"
+    if _bl_old not in _bl_t:
+        # Telegram 13.2 draws it through ThemeBind
+        _bl_old = "            ThemeBind.fillBackground(imageView, Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)), ThemeBind.of(Theme.key_featuredStickers_addButton));\n"
+    _gate_once(
         bl,
-        [
-            # Telegram 13.1.1 shape
-            (
-            "            imageView.setBackground(Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)));\n"
-            "            imageView.setOnClickListener(view -> {\n"
-            "                if (businessLink != null) {\n",
-            "            imageView.setBackground(Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)));\n"
-            "            imageView.setContentDescription(LocaleController.getString(R.string.CopyLink)); // a11y-fork: label\n"
-            "            imageView.setOnClickListener(view -> {\n"
-            "                if (businessLink != null) {\n",
-            ),
-            # Telegram 13.2.1 shape: the background goes through ThemeBind.fillBackground
-            (
-            "            ThemeBind.fillBackground(imageView, Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)), ThemeBind.of(Theme.key_featuredStickers_addButton));\n"
-            "            imageView.setOnClickListener(view -> {\n"
-            "                if (businessLink != null) {\n",
-            "            ThemeBind.fillBackground(imageView, Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)), ThemeBind.of(Theme.key_featuredStickers_addButton));\n"
-            "            imageView.setContentDescription(LocaleController.getString(R.string.CopyLink)); // a11y-fork: label\n"
-            "            imageView.setOnClickListener(view -> {\n"
-            "                if (businessLink != null) {\n",
-            ),
-        ],
+        _bl_old +
+        "            imageView.setOnClickListener(view -> {\n"
+        "                if (businessLink != null) {\n",
+        _bl_old +
+        "            imageView.setContentDescription(LocaleController.getString(R.string.CopyLink)); // a11y-fork: label\n"
+        "            imageView.setOnClickListener(view -> {\n"
+        "                if (businessLink != null) {\n",
         "BusinessLinksActivity copy link button label")
     delegate_tpl = (
         "{indent}dayNightItem.setAccessibilityDelegate(new android.view.View.AccessibilityDelegate() {{ // a11y-fork: label\n"
@@ -3467,20 +3491,12 @@ def patch_audit_unlabeled_buttons() -> None:
         "{indent}    }}\n"
         "{indent}}});\n")
     cc = JAVA / "org/telegram/ui/ChannelColorActivity.java"
-    _gate_once_any(cc, [
-        # Telegram 13.1.1 shape
-        (
-        "        dayNightItem = actionBar.createMenu().addItem(1, sunDrawable);\n",
-        "        dayNightItem = actionBar.createMenu().addItem(1, sunDrawable);\n"
-        + delegate_tpl.format(indent="        ", dark="isDark"),
-        ),
-        # Telegram 13.2.1 shape: the item may come from the simple action bar
-        (
-        "        dayNightItem = simpleActionBar != null ? simpleActionBar.createMenu().addItem(1, sunDrawable) : actionBar.createMenu().addItem(1, sunDrawable);\n",
-        "        dayNightItem = simpleActionBar != null ? simpleActionBar.createMenu().addItem(1, sunDrawable) : actionBar.createMenu().addItem(1, sunDrawable);\n"
-        + delegate_tpl.format(indent="        ", dark="isDark"),
-        ),
-    ], "ChannelColorActivity day/night button label")
+    a = "        dayNightItem = actionBar.createMenu().addItem(1, sunDrawable);\n"
+    if cc.exists() and a not in cc.read_text(encoding="utf-8"):
+        # Telegram 13.2 may put the item in a simple action bar
+        a = "        dayNightItem = simpleActionBar != null ? simpleActionBar.createMenu().addItem(1, sunDrawable) : actionBar.createMenu().addItem(1, sunDrawable);\n"
+    _gate_once(cc, a, a + delegate_tpl.format(indent="        ", dark="isDark"),
+               "ChannelColorActivity day/night button label")
     cw = JAVA / "org/telegram/ui/ChannelWallpaperActivity.java"
     b = "            dayNightItem = actionBar.createMenu().addItem(1, sunDrawable);\n"
     _gate_once(cw, b, b + delegate_tpl.format(indent="            ", dark="isDark()"),
@@ -3796,59 +3812,24 @@ def patch_longclickable_flag() -> None:
     which is the likely reason the sound is missing on some messages such as grouped media.
     Declaring it changes nothing else: the action itself is already handled."""
     cmc = JAVA / "org/telegram/ui/Cells/ChatMessageCell.java"
-    _gate_once_any(
-        JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java",
-        [
-            (
-                "                info.setEnabled(true);\n"
-                "                AccessibilityNodeInfo.CollectionItemInfo itemInfo = info.getCollectionItemInfo();\n",
-                "                info.setEnabled(true);\n"
-                "                info.setLongClickable(true); // a11y-fork: TalkBack long-press sound\n"
-                "                AccessibilityNodeInfo.CollectionItemInfo itemInfo = info.getCollectionItemInfo();\n",
-            ),
-            (
-                "            info.setEnabled(true);\n"
-                "            AccessibilityNodeInfo.CollectionItemInfo itemInfo = info.getCollectionItemInfo();\n",
-                "            info.setEnabled(true);\n"
-                "            info.setLongClickable(true); // a11y-fork: TalkBack long-press sound\n"
-                "            AccessibilityNodeInfo.CollectionItemInfo itemInfo = info.getCollectionItemInfo();\n",
-            ),
-        ],
+    _gate_once(
+        cmc,
+        "                info.setEnabled(true);\n"
+        "                AccessibilityNodeInfo.CollectionItemInfo itemInfo = info.getCollectionItemInfo();\n",
+        "                info.setEnabled(true);\n"
+        "                info.setLongClickable(true); // a11y-fork: TalkBack long-press sound\n"
+        "                AccessibilityNodeInfo.CollectionItemInfo itemInfo = info.getCollectionItemInfo();\n",
         "ChatMessageCell host node long-clickable flag")
-    np = JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java"
-    if np.exists():
-        npt = np.read_text(encoding="utf-8")
-        if "a11y-fork: every part is long-clickable" in npt:
-            print("ChatMessageCell virtual nodes long-clickable flag OK (provider guard)")
-        else:
-            old_np = (
-                "            info.setFocusable(true);\n"
-                "            info.setVisibleToUser(cell.isAccessibilityStopOnScreen(rect, pos));\n"
-                "            return info;\n")
-            new_np = (
-                "            info.setFocusable(true);\n"
-                "            info.setVisibleToUser(cell.isAccessibilityStopOnScreen(rect, pos));\n"
-                "            if (virtualViewId != HOST_VIEW_ID && !info.isLongClickable()) { // a11y-fork: every part is long-clickable\n"
-                "                info.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);\n"
-                "                info.setLongClickable(true); // a11y-fork: TalkBack long-press sound\n"
-                "            }\n"
-                "            return info;\n")
-            if npt.count(old_np) == 1:
-                np.write_text(npt.replace(old_np, new_np, 1), encoding="utf-8")
-                print("ChatMessageCell virtual nodes long-clickable flag OK (provider)")
-            else:
-                print("WARN: ChatMessageCell virtual nodes long-clickable flag anchor found %d times" % npt.count(old_np))
-    else:
-        _gate_once(
-            cmc,
-            "                    if (!a11yHasLong) {\n"
-            "                        a11yInfo.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);\n"
-            "                    }\n",
-            "                    if (!a11yHasLong) {\n"
-            "                        a11yInfo.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);\n"
-            "                    }\n"
-            "                    a11yInfo.setLongClickable(true); // a11y-fork: TalkBack long-press sound\n",
-            "ChatMessageCell virtual nodes long-clickable flag")
+    _gate_once(
+        cmc,
+        "                    if (!a11yHasLong) {\n"
+        "                        a11yInfo.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);\n"
+        "                    }\n",
+        "                    if (!a11yHasLong) {\n"
+        "                        a11yInfo.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);\n"
+        "                    }\n"
+        "                    a11yInfo.setLongClickable(true); // a11y-fork: TalkBack long-press sound\n",
+        "ChatMessageCell virtual nodes long-clickable flag")
 
 
 def _java_remove_method(text: str, signature: str) -> str:
@@ -4462,18 +4443,10 @@ def patch_admin_tag_switch() -> None:
     switch off nothing of it is spoken; with it on the stock wording is unchanged.
     """
     cmc = JAVA / "org/telegram/ui/Cells/ChatMessageCell.java"
-    _gate_once_any(
-        JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java",
-        [
-            (
-                "                        final CharSequence adminText = getAdminAccessibilityText();\n",
-                "                        final CharSequence adminText = org.telegram.messenger.A11yConfig.getAdminTagAnnounce() ? getAdminAccessibilityText() : null; // a11y-fork: setting (default OFF)\n",
-            ),
-            (
-                "                    final CharSequence adminText = cell.getAdminAccessibilityText();\n",
-                "                    final CharSequence adminText = org.telegram.messenger.A11yConfig.getAdminTagAnnounce() ? cell.getAdminAccessibilityText() : null; // a11y-fork: setting (default OFF)\n",
-            ),
-        ],
+    _gate_once(
+        cmc,
+        "                        final CharSequence adminText = getAdminAccessibilityText();\n",
+        "                        final CharSequence adminText = org.telegram.messenger.A11yConfig.getAdminTagAnnounce() ? getAdminAccessibilityText() : null; // a11y-fork: setting (default OFF)\n",
         "ChatMessageCell admin-tag switch")
 
 
@@ -4653,32 +4626,10 @@ def patch_every_node_long_click() -> None:
             t = t.replace(old, new, 1)
             cmc.write_text(t, encoding="utf-8")
             print("ChatMessageCell every-node long-click OK")
+        elif _provider_split():
+            print("ChatMessageCell every-node long-click: the provider is its own file (done by patch_provider_port)")
         else:
-            np = JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java"
-            if np.exists():
-                npt = np.read_text(encoding="utf-8")
-                if "a11y-fork: every part is long-clickable" in npt:
-                    print("ChatMessageCell every-node long-click OK (provider guard)")
-                else:
-                    old_np = (
-                        "            info.setFocusable(true);\n"
-                        "            info.setVisibleToUser(cell.isAccessibilityStopOnScreen(rect, pos));\n"
-                        "            return info;\n")
-                    new_np = (
-                        "            info.setFocusable(true);\n"
-                        "            info.setVisibleToUser(cell.isAccessibilityStopOnScreen(rect, pos));\n"
-                        "            if (virtualViewId != HOST_VIEW_ID && !info.isLongClickable()) { // a11y-fork: every part is long-clickable\n"
-                        "                info.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);\n"
-                        "                info.setLongClickable(true); // a11y-fork: TalkBack long-press sound\n"
-                        "            }\n"
-                        "            return info;\n")
-                    if npt.count(old_np) == 1:
-                        np.write_text(npt.replace(old_np, new_np, 1), encoding="utf-8")
-                        print("ChatMessageCell every-node long-click OK (provider)")
-                    else:
-                        print("WARN: ChatMessageCell provider createAccessibilityNodeInfo anchor not found exactly once")
-            else:
-                print("WARN: ChatMessageCell provider createAccessibilityNodeInfo anchor not found exactly once")
+            print("WARN: ChatMessageCell provider createAccessibilityNodeInfo anchor not found exactly once")
     cac = JAVA / "org/telegram/ui/Cells/ChatActionCell.java"
     if cac.exists():
         t = cac.read_text(encoding="utf-8")
@@ -6247,24 +6198,13 @@ def patch_message_tap_sound() -> None:
         "            org.telegram.messenger.A11yConfig.playChatOpenSound();\n"
         "        }\n",
         "ChatMessageCell tap sound (message)")
-    _gate_once_any(
-        JAVA / "org/telegram/ui/Cells/ChatMessageAccessibilityNodeProvider.java",
-        [
-            (
-                "                } else if (action == AccessibilityNodeInfo.ACTION_CLICK) {\n"
-                "                    if (virtualViewId == PROFILE) {\n",
-                "                } else if (action == AccessibilityNodeInfo.ACTION_CLICK) {\n"
-                "                    org.telegram.messenger.A11yConfig.playChatOpenSound(); // a11y-fork: touch sound for a tap on a part of a message\n"
-                "                    if (virtualViewId == PROFILE) {\n",
-            ),
-            (
-                "            } else if (action == AccessibilityNodeInfo.ACTION_CLICK) {\n"
-                "                if (virtualViewId == PROFILE) {\n",
-                "            } else if (action == AccessibilityNodeInfo.ACTION_CLICK) {\n"
-                "                org.telegram.messenger.A11yConfig.playChatOpenSound(); // a11y-fork: touch sound for a tap on a part of a message\n"
-                "                if (virtualViewId == PROFILE) {\n",
-            ),
-        ],
+    _gate_once(
+        cmc,
+        "                } else if (action == AccessibilityNodeInfo.ACTION_CLICK) {\n"
+        "                    if (virtualViewId == PROFILE) {\n",
+        "                } else if (action == AccessibilityNodeInfo.ACTION_CLICK) {\n"
+        "                    org.telegram.messenger.A11yConfig.playChatOpenSound(); // a11y-fork: touch sound for a tap on a part of a message\n"
+        "                    if (virtualViewId == PROFILE) {\n",
         "ChatMessageCell tap sound (parts of a message)")
 
 
@@ -7400,9 +7340,8 @@ def patch_download_cancel_announce() -> None:
         print("WARN: ChatMessageCell: no 'loadingCancelled = true' found (download cancel announce)")
         return
     t = rx.sub(lambda m: m.group(0) + m.group(1) + "a11yAnnounceDownloadCancelled(); // a11y-fork: download cancelled\n", t)
-    anchor = "    private void performMediaDownloadAction() {\n"
-    if t.count(anchor) != 1:
-        anchor = "    void performMediaDownloadAction() {\n"
+    anchors = re.findall(r"(?m)^    (?:private )?void performMediaDownloadAction\(\) \{\n", t)
+    anchor = anchors[0] if len(anchors) == 1 else "    private void performMediaDownloadAction() {\n"
     if t.count(anchor) != 1:
         print("WARN: ChatMessageCell performMediaDownloadAction anchor not found (download cancel announce)")
         return
@@ -7576,22 +7515,18 @@ def patch_remove_mehran_progress_percent() -> None:
     behind the existing 'Downloaded / not downloaded status' switch."""
     marker = "a11y-fork: no progress percent"
     cmc = JAVA / "org/telegram/ui/Cells/ChatMessageCell.java"
-    _cmct = cmc.read_text(encoding="utf-8") if cmc.exists() else ""
-    if "announceTransferProgress" in _cmct:
-        _multi_replace_once(cmc, [
-            ("    private void announceTransferProgress(boolean sending, long loadedSize, long totalSize) {\n",
-             "    private void announceTransferProgress(boolean sending, long loadedSize, long totalSize) {\n"
-             "        if (true) { // " + marker + ": our own RadialProgress announces it\n"
-             "            return;\n"
-             "        }\n"),
-            ("        sb.append(\" \").append(percent).append(\"%\");\n"
-             "        if (totalSize > 0) {\n"
-             "            sb.append(\", \").append(formatString(R.string.AccDescrTransferredSize, AndroidUtilities.formatFileSize(loadedSize), AndroidUtilities.formatFileSize(totalSize)));\n"
-             "        }\n",
-             "        // " + marker + ": only the word (Downloading / Sending), no percentage and no size\n"),
-        ], marker, "ChatMessageCell fork progress percent removed")
-    else:
-        print("ChatMessageCell fork progress percent removed OK (already absent from the patch)")
+    _multi_replace_once(cmc, [
+        ("    private void announceTransferProgress(boolean sending, long loadedSize, long totalSize) {\n",
+         "    private void announceTransferProgress(boolean sending, long loadedSize, long totalSize) {\n"
+         "        if (true) { // " + marker + ": our own RadialProgress announces it\n"
+         "            return;\n"
+         "        }\n"),
+        ("        sb.append(\" \").append(percent).append(\"%\");\n"
+         "        if (totalSize > 0) {\n"
+         "            sb.append(\", \").append(formatString(R.string.AccDescrTransferredSize, AndroidUtilities.formatFileSize(loadedSize), AndroidUtilities.formatFileSize(totalSize)));\n"
+         "        }\n",
+         "        // " + marker + ": only the word (Downloading / Sending), no percentage and no size\n"),
+    ], marker, "ChatMessageCell fork progress percent removed")
     ata = JAVA / "org/telegram/ui/Components/AccessibilityTransferAnnouncer.java"
     _multi_replace_once(ata, [
         ("    public void onProgress(long loadedSize, long totalSize, boolean withSize) {\n",
@@ -7872,6 +7807,7 @@ def main() -> int:
     patch_longpress_same_menu_path()
     # MUST stay last: it rewrites English text injected by the patches above
     # (Selected / Bot Buttons / Forwarded to Saved / Accessible settings ...).
+    patch_provider_port()
     patch_a11y_localization()
     print("A11y REAL patches done")
     return 0
