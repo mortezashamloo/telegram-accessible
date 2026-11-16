@@ -26,6 +26,11 @@ on:
         description: 'Release Description (Change Log - optional; type \n for a new line)'
         default: ''
         required: false
+      telegram_ref:
+        type: string
+        description: 'Telegram source version: a commit or branch. Default = the tested 13.2.2. Type master for the newest (the accessibility patch may not fit it yet)'
+        default: '21f7d109da6ab3506c9e9577f98c6a38771ab335'
+        required: false
 
 jobs:
   build:
@@ -71,6 +76,8 @@ jobs:
       # apply-a11y.py / patches/* invalidates the Telegram clone cache.
       - name: Compute patches cache key
         id: patches_key
+        env:
+          TG_REF: ${{ inputs.telegram_ref }}
         run: |
           set -e
           KEY=$(find patches-repo/scripts patches-repo/patches -type f \( -name '*.py' -o -name '*.patch' -o -name '*.java' \) -print0 2>/dev/null \
@@ -78,6 +85,14 @@ jobs:
           if [ -z "$KEY" ]; then KEY="nopatches"; fi
           echo "key=$KEY" >> "$GITHUB_OUTPUT"
           echo "Patches cache key: $KEY"
+          # the cached clean clone is for one exact Telegram version; a branch name keeps moving, so it is never cached
+          TG_REF="${TG_REF:-master}"
+          if printf '%s' "$TG_REF" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "ref=$(printf '%s' "$TG_REF" | cut -c1-12)" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=branch-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Telegram source: $TG_REF"
 
       # The cache holds the CLEAN clone only (saved right after cloning, before any patch).
       # Saving the patched tree made a rebuild of the same scripts run apply-a11y.py twice
@@ -87,14 +102,21 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: telegram
-          key: telegram-clean-${{ runner.os }}-${{ steps.patches_key.outputs.key }}
+          key: telegram-clean-${{ runner.os }}-${{ steps.patches_key.outputs.ref }}-${{ steps.patches_key.outputs.key }}
 
       - name: Clone Telegram with submodules
         if: steps.cache_telegram.outputs.cache-hit != 'true'
+        env:
+          TG_REF: ${{ inputs.telegram_ref }}
         run: |
           set -e
-          git clone --recursive --depth 1 https://github.com/DrKLO/Telegram.git telegram
+          TG_REF="${TG_REF:-master}"
+          git init -q telegram
           cd telegram
+          git remote add origin https://github.com/DrKLO/Telegram.git
+          git fetch --depth 1 origin "$TG_REF"
+          git checkout -q --detach FETCH_HEAD
+          git log -1 --format='Telegram source: %h %ad %s' --date=short
           git submodule sync --recursive
           git submodule update --init --recursive --depth 1 || git submodule update --init --recursive
           if [ ! -f TMessagesProj/lib/jlatexmath/jlatexmath/build.gradle ] && [ ! -f TMessagesProj/lib/jlatexmath/build.gradle ]; then
@@ -107,7 +129,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: telegram
-          key: telegram-clean-${{ runner.os }}-${{ steps.patches_key.outputs.key }}
+          key: telegram-clean-${{ runner.os }}-${{ steps.patches_key.outputs.ref }}-${{ steps.patches_key.outputs.key }}
 
       # When the clone came from cache, submodules may be missing files if the
       # original clone was interrupted; refresh them just in case.
@@ -133,7 +155,7 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           accept-android-sdk-licenses: true
-          packages: 'platform-tools build-tools;36.0.0 platforms;android-36'
+          packages: 'platform-tools build-tools;35.0.0 platforms;android-35'
 
       # a11y-fork: cache Android NDK + CMake — downloading these is one of
       # the slowest parts of the job.
@@ -149,7 +171,7 @@ jobs:
       - name: Install SDK components
         run: |
           set -e
-          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
           if [ ! -d "$ANDROID_HOME/ndk/27.2.12479018" ]; then
             sdkmanager --install "ndk;27.2.12479018"
           else
@@ -230,34 +252,8 @@ jobs:
           done
 
           python3 patches-repo/scripts/apply-a11y.py
-
-          # Save original Gradle files before slim-arm64.py strips armv7, so we can build both arm64 and armv7!
-          for gf in telegram/build.gradle telegram/TMessagesProj/build.gradle telegram/TMessagesProj_App/build.gradle; do
-            if [ -f "$gf" ]; then
-              cp "$gf" "${gf}.orig"
-            fi
-          done
-
           if [ -f "$PWD/patches-repo/scripts/slim-arm64.py" ]; then
             python3 "$PWD/patches-repo/scripts/slim-arm64.py" || true
-          fi
-
-      # Telegram 13.2.2 renders widgets through the twidget submodule. The 13.2.2 patch
-      # switches its URL in .gitmodules to mehranlatifi83's fork, which carries the
-      # accessibility changes (upstream's twidget has none). `git apply` cannot move a
-      # submodule's gitlink itself, so the fork's renderer is fetched and checked out here.
-      - name: Point the twidget submodule at the fork's accessible renderer
-        run: |
-          set -e
-          cd telegram
-          git submodule sync --recursive || true
-          git submodule update --init --recursive --depth 1 || git submodule update --init --recursive || true
-          cd TMessagesProj/jni/twidget/twidget
-          if git fetch --depth 1 origin c372d2dc29c1420b6b9f537f402f2f62a70b47a9; then
-            git checkout -q c372d2dc29c1420b6b9f537f402f2f62a70b47a9
-            echo "twidget: the fork's accessible renderer (c372d2dc) is checked out"
-          else
-            echo "WARN: could not fetch the fork's twidget; the build keeps the renderer already on disk"
           fi
 
       - name: Unique package id + private signing (Play Protect)
@@ -312,12 +308,11 @@ jobs:
           PY
           grep -n "^APP_PACKAGE" telegram/gradle.properties
 
-      - name: Build ARM64 APK
+      - name: Build APK
         working-directory: telegram
         run: |
           set -e
           chmod +x gradlew
-          mkdir -p ../built-apks
           if ./gradlew :TMessagesProj_App:assembleAfatRelease --stacktrace --no-daemon; then
             echo "BUILD_VARIANT=release" >> "$GITHUB_ENV"
           else
@@ -325,82 +320,22 @@ jobs:
             ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace --no-daemon
             echo "BUILD_VARIANT=debug" >> "$GITHUB_ENV"
           fi
-          APK64=$(find . -path "*outputs/apk*" -name "*.apk" | head -n 1)
-          if [ -z "$APK64" ] || [ ! -f "$APK64" ]; then
-            echo "ERROR: no ARM64 APK found"
-            exit 1
-          fi
-          cp "$APK64" ../built-apks/telegram-accessible-arm64.apk
-          echo "Saved ARM64 APK:"
-          ls -lh ../built-apks/telegram-accessible-arm64.apk
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
 
-      - name: Configure and Build ARMv7 (32-bit) APK
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
-          A11Y_KEYSTORE_BASE64: ${{ secrets.A11Y_KEYSTORE_BASE64 }}
-          A11Y_STORE_PASSWORD: ${{ secrets.A11Y_STORE_PASSWORD }}
-          A11Y_KEY_PASSWORD: ${{ secrets.A11Y_KEY_PASSWORD }}
-          A11Y_KEY_ALIAS: ${{ secrets.A11Y_KEY_ALIAS }}
-          A11Y_APP_PACKAGE: com.shamloo.telegram.accessible
-        run: |
-          set -e
-          # Restore original Gradle files and configure abiFilters for armeabi-v7a (32-bit ARMv7)
-          for gf in telegram/build.gradle telegram/TMessagesProj/build.gradle telegram/TMessagesProj_App/build.gradle; do
-            if [ -f "${gf}.orig" ]; then
-              cp "${gf}.orig" "$gf"
-            fi
-          done
-
-          if [ -f "$PWD/patches-repo/scripts/slim-arm64.py" ]; then
-            python3 "$PWD/patches-repo/scripts/slim-arm64.py" || true
-          fi
-
-          # Replace arm64-v8a filter with armeabi-v7a in Gradle files so afat builds pure 32-bit ARMv7
-          python3 - <<'PY'
-          import glob
-          for gf in ["telegram/build.gradle", "telegram/TMessagesProj/build.gradle", "telegram/TMessagesProj_App/build.gradle"]:
-              try:
-                  t = open(gf, encoding="utf-8").read()
-                  t2 = t.replace("arm64-v8a", "armeabi-v7a")
-                  if t != t2:
-                      open(gf, "w", encoding="utf-8").write(t2)
-                      print("Updated ABI filter to armeabi-v7a in", gf)
-              except Exception as e:
-                  print("Warn:", gf, e)
-          PY
-
-          if [ -f "$PWD/patches-repo/scripts/prepare-release-signing.py" ]; then
-            python3 "$PWD/patches-repo/scripts/prepare-release-signing.py"
-          fi
-
-          # Clean previous APK outputs before building ARMv7
-          rm -rf telegram/TMessagesProj_App/build/outputs/apk
-
-          cd telegram
-          if ./gradlew :TMessagesProj_App:assembleAfatRelease --stacktrace --no-daemon; then
-            echo "ARMv7 Release build succeeded"
-          else
-            echo "ARMv7 Release failed — falling back to afatDebug"
-            ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace --no-daemon
-          fi
-          APK32=$(find . -path "*outputs/apk*" -name "*.apk" | head -n 1)
-          if [ -z "$APK32" ] || [ ! -f "$APK32" ]; then
-            echo "ERROR: no ARMv7 APK found"
-            exit 1
-          fi
-          cp "$APK32" ../built-apks/telegram-accessible-armv7.apk
-          echo "Saved ARMv7 APK:"
-          ls -lh ../built-apks/telegram-accessible-armv7.apk
-
-      - name: Verify Built APKs
+      - name: Find APK
         id: apk
         run: |
           set -e
-          ls -lh built-apks/
-          echo "arm64_path=built-apks/telegram-accessible-arm64.apk" >> "$GITHUB_OUTPUT"
-          echo "armv7_path=built-apks/telegram-accessible-armv7.apk" >> "$GITHUB_OUTPUT"
+          APK=$(find telegram -path "*outputs/apk*" -name "*.apk" | head -n 1)
+          if [ -z "$APK" ] || [ ! -f "$APK" ]; then
+            echo "ERROR: no APK found"
+            find telegram -name "*.apk" 2>/dev/null | head -20 || true
+            exit 1
+          fi
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+          echo "Found APK: $APK"
+          ls -lh "$APK"
 
       - name: Prepare Keystore File for Artifact
         if: always()
@@ -424,23 +359,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-      - name: Upload ARM64 APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: telegram-accessible-arm64
-          path: ${{ steps.apk.outputs.arm64_path }}
+          path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload ARMv7 APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: telegram-accessible-armv7
-          path: ${{ steps.apk.outputs.armv7_path }}
-          if-no-files-found: error
-          retention-days: 14
-
-      # Only when create_release = Yes: make the release and attach both APKs, no manual upload needed.
+      # Only when create_release = Yes: make the release and attach the APK, no manual upload needed.
       - name: Create GitHub Release
         if: ${{ inputs.create_release == 'Yes' }}
         env:
@@ -448,8 +375,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag_name }}
           RELEASE_TITLE: ${{ inputs.release_title }}
           RELEASE_NOTES: ${{ inputs.release_description }}
-          APK64_PATH: ${{ steps.apk.outputs.arm64_path }}
-          APK32_PATH: ${{ steps.apk.outputs.armv7_path }}
+          APK_PATH: ${{ steps.apk.outputs.path }}
         run: |
           set -e
           TAG="$RELEASE_TAG"
@@ -470,11 +396,9 @@ jobs:
             NOTES="$NOTES"$'\n\n'"Note: the release build failed, so this APK is a debug build."
             EXTRA+=(--prerelease)
           fi
-          FILE64="telegram-accessible-${TAG}-arm64.apk"
-          FILE32="telegram-accessible-${TAG}-armv7.apk"
-          cp "$APK64_PATH" "$FILE64"
-          cp "$APK32_PATH" "$FILE32"
-          gh release create "$TAG" "$FILE64" "$FILE32" \
+          FILE="telegram-accessible-${TAG}.apk"
+          cp "$APK_PATH" "$FILE"
+          gh release create "$TAG" "$FILE" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "$TITLE" \
