@@ -677,7 +677,112 @@ def _patch_a11y_string_resources() -> None:
         "AccDescrShareInChats_one": "اشتراک‌گذاری در %1$d گفتگو",
         "AccDescrShareInChats_other": "اشتراک‌گذاری در %1$d گفتگو",
     }
-    for rel, values in (("values/strings.xml", en), ("values-fa/strings.xml", fa), ("values-fa-rIR/strings.xml", fa)):
+    ar = {
+        "A11yAccessibleSettingsTitle": "إعدادات إمكانية الوصول",
+        "A11yProgressAnnounceLabel": "إعلان التقدم: %s",
+        "A11yProgressStepLabel": "خطوة التقدم %1$d بالمئة",
+        "A11yProgressStepPickerTitle": "خطوة إعلان التقدم",
+        "A11yVoiceQualityLabel": "جودة الصوت: %s",
+        "A11yVoiceQualityPickerTitle": "جودة الرسالة الصوتية",
+        "A11yVoiceLow": "منخفضة",
+        "A11yVoiceMedium": "متوسطة",
+        "A11yVoiceHigh": "عالية",
+        "A11yHideSponsorLabel": "إخفاء قناة الراعي: %s",
+        "A11ySponsorHidden": "تم إخفاء قناة الراعي",
+        "A11ySponsorShown": "تم إظهار قناة الراعي",
+        "A11yGhostModeLabel": "وضع الشبح: %s",
+        "A11yGhostOn": "تم تفعيل وضع الشبح",
+        "A11yGhostOff": "تم إيقاف وضع الشبح",
+        "A11yStatusPreviewLabel": "إظهار الحالة في المعاينة: %s",
+        "A11yStatusOn": "تم تفعيل معاينة الحالة",
+        "A11yStatusOff": "تم إيقاف معاينة الحالة",
+        "A11yForwardSavedNoQuoteLabel": "إعادة التوجيه إلى الرسائل المحفوظة بدون اقتباس: %s",
+        "A11yRecordingBeepLabel": "صوت تنبيه بدء التسجيل: %s",
+        "A11ySolarCalendarLabel": "التقويم الشمسي: %s",
+        "A11yBlockSmallFilesLabel": "عدم التنزيل التلقائي للملفات الصغيرة: %s",
+        "A11yNoAutoDownloadLabel": "عدم التنزيل التلقائي لأي ملفات: %s",
+        "A11yVoiceOnlyAutoDownloadLabel": "عدم التنزيل التلقائي للملفات باستثناء الرسائل الصوتية: %s",
+        "A11yOn": "مفعل",
+        "A11yOff": "معطل",
+        "A11yCancel": "إلغاء",
+        "A11ySolarDate": "%1$s",
+        "A11yAt": "في",
+        "A11yAccessibleSettings": "إعدادات إمكانية الوصول",
+        "A11yProgressAnnounce": "إعلان التقدم",
+        "A11yVoiceQuality": "جودة الصوت",
+        "A11yProgressAnnounceSummary": "التقدم وجودة الصوت",
+        "A11yProgressAnnounceStep": "خطوة إعلان التقدم",
+        "A11yVoiceMessageQuality": "جودة الرسالة الصوتية",
+        "A11yLow": "منخفضة",
+        "A11yMedium": "متوسطة",
+        "A11yHigh": "عالية",
+        "A11yProgressStep": "خطوة التقدم %1$d بالمئة",
+        "A11yVoiceQualitySelected": "جودة الصوت %1$s",
+        "A11yForwardWithoutQuote": "إعادة توجيه بدون اقتباس",
+        "A11yForwardToSaved": "إعادة توجيه إلى الرسائل المحفوظة",
+        "A11yForwardedToSaved": "تمت إعادة التوجيه إلى الرسائل المحفوظة",
+        "A11ySelected": "تم التحديد",
+        "A11yReceiveAt": "تم الاستلام في %1$s",
+        "A11ySentAt": "تم الإرسال في %1$s",
+        "A11yBotButtons": "أزرار البوت",
+        "A11yGoToFirstMessage": "الذهاب إلى أول رسالة",
+        "A11yLinks": "الروابط",
+        "A11yLinksLabel": "الروابط: %s",
+        "A11yNoLinks": "لا توجد روابط",
+        "A11yBotNumber": "بوت %1$d",
+        "A11yPercent": "%1$d بالمئة",
+        "A11yDownloaded": "تم التنزيل",
+        "A11yDownloadStateLabel": "حالة التنزيل (تم التنزيل / لم يتم التنزيل): %s",
+        "A11yAlbumReadingLabel": "الإعلان عن تجميع ألبوم الوسائط: %s",
+        "A11yAlbumReadingSummary": "يعلن قارئ الشاشة عندما تنتمي الرسالة إلى ألبوم وموقعها فيه",
+        "A11yAdminTagLabel": "الإعلان عن شارات المشرف والمجموعة: %s",
+        "A11yAdminTagSummary": "يضيف شارة المشرف أو المالك أو شارة المجموعة بعد اسم المرسل في المجموعات.",
+        "A11yLeaveComment": "كتابة تعليق",
+        "A11yCommentOne": "تعليق واحد",
+        "A11yCommentsCount": "%1$d تعليقات",
+        "A11yUserStatusLabel": "إعلانات حالة المستخدم (يكتب، يسجل صوتا، متصل): %s",
+        "A11yChatOpenSoundLabel": "صوت اللمس عند النقر على رسالة: %s",
+        "A11ySenderOptionsLabel": "خيارات المرسل في قائمة الرسالة: %s",
+        "A11yVoiceShareSaveLabel": "المشاركة والحفظ في الموسيقى للرسائل الصوتية: %s",
+        "A11yPlayerSeekLabel": "الترجيع والتقديم في مشغل الصوت: %s",
+        "A11yPlayerRewind": "ترجيع 10 ثوان",
+        "A11yPlayerForward": "تقديم 10 ثوان",
+        "A11yProxyButtonLabel": "زر البروكسي في شريط أدوات قائمة المحادثات: %s",
+        "A11yOldMenuLabel": "القائمة الرئيسية القديمة بدلا من التبويبات السفلية: %s",
+        "A11yMainMenu": "القائمة الرئيسية",
+        "A11yCategoryLabel": "مرشح تصنيف المحادثات في قائمة المحادثات: %s",
+        "A11yForwardHere": "إعادة توجيه هنا",
+        "A11yForwardHereLabel": "إعادة توجيه هنا في خيارات الرسالة: %s",
+        "A11yTabCountsLabel": "الأعداد على تبويبات الوسائط للمجموعات والقنوات: %s",
+        "A11yDownloadBeepLabel": "صوت تنبيه عند اكتمال التنزيل: %s",
+        "A11yBeepOutputLabel": "صوت التنبيه (اكتمال التنزيل، بدء التسجيل): %s",
+        "A11yBeepOutputPickerTitle": "صوت التنبيه",
+        "A11yBeepOutputRingtone": "مستوى صوت الرنين (عالي، ويصدر أيضا من سماعة الهاتف)",
+        "A11yBeepOutputTelegram": "أصوات تيليجرام نفسه",
+        "A11yDownloadCancelled": "تم إلغاء التنزيل",
+        "A11yLinkCopied": "تم نسخ الرابط",
+        "A11yForwardedHere": "تمت إعادة التوجيه هنا",
+        "A11yCategoryButton": "التصنيف: %s",
+        "A11yCategoryPrivate": "المحادثات الخاصة",
+        "A11yCategoryShowing": "المعروض: %s",
+        "A11yCategoryUnread": "المحادثات غير المقروءة",
+        "A11yMenuStyleLabel": "نمط القائمة الرئيسية: %s",
+        "A11yMenuStylePickerTitle": "نمط القائمة الرئيسية",
+        "A11yMenuStyleCurrent": "تيليجرام الحالي (التبويبات السفلية)",
+        "A11yMenuStyleOld": "القائمة المنبثقة القديمة (بدون تبويبات سفلية)",
+        "A11yMenuStyleDrawer": "استخدام القائمة الجانبية القديمة (بدون تبويبات سفلية)",
+        "A11yLegacyDrawerRestart": "أغلق التطبيق وأعد فتحه لتطبيق التغيير",
+        "A11yCategoryRead": "المحادثات المقروءة",
+        "A11yUnselected": "تم إلغاء التحديد",
+        "A11ySelectAllDone": "تم تحديد %1$d محادثات",
+        "A11yMutualContact": "جهة اتصال متبادلة",
+        "A11ySwitchAccount": "تبديل الحساب",
+        "A11yVideoSettings": "إعدادات الفيديو: الجودة والسرعة",
+        "A11yAddMembersConfirm": "إضافة الأعضاء المحددين",
+        "A11yClose": "إغلاق",
+        "A11yFileLabel": "ملف",
+    }
+    for rel, values in (("values/strings.xml", en), ("values-fa/strings.xml", fa), ("values-fa-rIR/strings.xml", fa), ("values-ar/strings.xml", ar)):
         path = RES / rel
         if not path.exists():
             print("WARN: resource file missing:", path)
@@ -1425,6 +1530,39 @@ def patch_forward_menu_extras() -> None:
              "                }")
         if old in t: t=t.replace(old,new,1); print("Forward menu extras OK")
         else: print("WARN: canForward menu block not found")
+    if "a11y-fork: multi-select forward without quote" not in t:
+        old_open_fwd = (
+            "    private void openForward(boolean fromActionBar) {\n"
+            "        if (isPeerNoForwards() || hasSelectedNoforwardsMessage()) {\n"
+        )
+        new_open_fwd = (
+            "    private void openForward(boolean fromActionBar) {\n"
+            "        openForward(fromActionBar, false);\n"
+            "    }\n\n"
+            "    private void openForward(boolean fromActionBar, boolean a11ySkipPrompt) {\n"
+            "        // a11y-fork: multi-select forward without quote\n"
+            "        if (!a11ySkipPrompt && !isPeerNoForwards() && !hasSelectedNoforwardsMessage() && getParentActivity() != null) {\n"
+            "            CharSequence[] fwdChoices = new CharSequence[]{\n"
+            "                LocaleController.getString(R.string.Forward),\n"
+            "                LocaleController.getString(R.string.A11yForwardWithoutQuote)\n"
+            "            };\n"
+            "            new AlertDialog.Builder(getParentActivity())\n"
+            "                .setTitle(LocaleController.getString(R.string.Forward))\n"
+            "                .setItems(fwdChoices, (dialog, which) -> {\n"
+            "                    IS_FORWARD_NO_QUOTE = (which == 1);\n"
+            "                    openForward(fromActionBar, true);\n"
+            "                })\n"
+            "                .setNegativeButton(LocaleController.getString(R.string.Cancel), null)\n"
+            "                .show();\n"
+            "            return;\n"
+            "        }\n"
+            "        if (isPeerNoForwards() || hasSelectedNoforwardsMessage()) {\n"
+        )
+        if old_open_fwd in t:
+            t = t.replace(old_open_fwd, new_open_fwd, 1)
+            print("Multi-select forward without quote OK")
+        else:
+            print("WARN: openForward anchor not found in ChatActivity.java")
     t=patch_forward_handler(t)
     ca.write_text(t,encoding="utf-8")
     print("Forward option handlers v2 OK")
@@ -3007,11 +3145,103 @@ def patch_mehran_strings_persian() -> None:
         return
     base = src.read_text(encoding="utf-8")
     n = 0
-    for rel in ("values-fa/strings.xml", "values-fa-rIR/strings.xml"):
+    ar_fork = {
+        'AccActionChartOpenDay': 'عرض هذا اليوم',
+        'VoipShareScreenTitle': 'مشاركة الشاشة',
+        'VoipShareScreenAudio': 'مشاركة صوت الهاتف أيضا',
+        'VoipShareScreenAudioInfo': 'سيتم سماع الفيديوهات والموسيقى وأي صوت تشغله التطبيقات مع شاشتك في المكالمة. بعض التطبيقات لا تسمح بمشاركة صوتها.',
+        'SecretChatAccessibilityTitle': 'هل تريد قراءة هذه المحادثة السرية؟',
+        'SecretChatAccessibilityText': 'يتم إخفاء المحادثات السرية عن خدمات إمكانية الوصول، لأن أي خدمة مفعلة على هذا الهاتف يمكنها قراءة ما يظهر على الشاشة. الخدمات المفعلة حاليا: %1$s.\n\nإذا تابعت، فستتمكن هذه الخدمات من قراءة رسائل هذه المحادثة وسيتم إبلاغ %2$s بذلك في المحادثة.',
+        'SecretChatAccessibilityAllow': 'السماح والإبلاغ',
+        'SecretChatAccessibilityWarning': 'أنا أستخدم قارئ الشاشة، لذا سمحت لخدمات إمكانية الوصول في هاتفي بقراءة هذه المحادثة السرية: %1$s. يمكنها قراءة أي شيء يظهر على الشاشة.',
+        'AccActionLinkOptions': 'خيارات %1$s',
+        'AccActionSenderOptions': 'خيارات المرسل',
+        'AccActionReactWith': 'التفاعل بـ %1$s',
+        'AccActionUnreactWith': 'إزالة التفاعل بـ %1$s',
+        'AccActionReactWithCount_one': 'التفاعل بـ %2$s، شخص واحد',
+        'AccActionReactWithCount_other': 'التفاعل بـ %2$s، %1$d أشخاص',
+        'AccActionUnreactWithCount_one': 'إزالة التفاعل بـ %2$s، شخص واحد',
+        'AccActionUnreactWithCount_other': 'إزالة التفاعل بـ %2$s، %1$d أشخاص',
+        'AccActionOpenCommunity': 'فتح المجتمع',
+        'AccDescrCurvesTool': 'المنحنيات',
+        'AccDescrColorPicker': 'منتقي الألوان',
+        'AccDescrFlashlight': 'المصباح',
+        'AccDescrInsertIntoSearch': 'إدراج في البحث',
+        'AccDescrRecordingTrimStart': 'قص من البداية',
+        'AccDescrRecordingTrimEnd': 'قص من النهاية',
+        'AccDescrPaintColors': 'الألوان',
+        'AccDescrPaintColor': 'اللون',
+        'AccDescrPaintPen': 'قلم',
+        'AccDescrPaintMarker': 'قلم تحديد',
+        'AccDescrPaintNeon': 'نيون',
+        'AccDescrPaintBlur': 'تمويه',
+        'AccDescrPaintEraser': 'ممحاة',
+        'AccDescrPaintShapes': 'الأشكال',
+        'AccDescrPaintSize': 'حجم الفرشاة',
+        'AccDescrTextAlignment': 'محاذاة النص',
+        'AccDescrTextStyle': 'نمط النص',
+        'AccDescrMediaDownloaded': 'تم التنزيل',
+        'AccDescrMediaNotDownloaded': 'لم يتم التنزيل',
+        'AccDescrTransferredSize': '%1$s من %2$s',
+        'AccDescrDiceMissed': 'أخطأ الهدف',
+        'AccDescrDiceOnTarget': 'على لوحة الهدف',
+        'AccDescrDiceBullseye': 'في منتصف الهدف',
+        'AccDescrDiceScored': 'سجل نقطة',
+        'AccDescrDiceGoal': 'هدف',
+        'AccDescrDiceStrike': 'ضربة كاملة',
+        'AccDescrChatInFolders': 'في %s',
+        'AccDescrMessageEffect': 'أرسلت مع %s',
+        'AccDescrChatHiddenInCommunity': 'مخفية في المجتمع',
+        'AccDescrChatUnreadStories': 'تحتوي على قصص غير مقروءة',
+        'AccDescrPollMultipleChoice': 'اختيار متعدد',
+        'AccDescrPollVoted': 'لقد صوت',
+        'AccDescrPollClosesAt': 'يغلق في %s',
+        'AccDescrPollExplanationMedia': '%s للشرح',
+        'AccActionMoveUp': 'تحريك للأعلى',
+        'AccActionMoveDown': 'تحريك للأسفل',
+        'AccDescrPollOptionMoved': 'الآن %1$d من %2$d',
+        'AccDescrDownloadMoved': 'الآن %1$d من %2$d',
+        'AccDescrDownloadPaused': 'متوقف مؤقتا',
+        'AccDescrPollOptionNumber': 'الخيار %1$d من %2$d',
+        'AccDescrTodoTaskNumber': 'المهمة %1$d من %2$d',
+        'AccDescrPollCharactersLeft': 'متبقي %s',
+        'AccDescrPollNoQuestion': 'اطرح سؤالا أولا',
+        'AccDescrPollNoOptions': 'أضف خيارا أولا',
+        'AccDescrPollQuestionTooLong': 'السؤال طويل جدا',
+        'AccDescrPollOptionTooLong': 'أحد الخيارات طويل جدا',
+        'AccDescrPollDescriptionTooLong': 'الوصف طويل جدا',
+        'AccDescrPollExplanationTooLong': 'شرح الإجابة طويل جدا',
+        'AccDescrTodoNoTitle': 'ضع عنوانا لقائمة المهام أولا',
+        'AccDescrTodoNoTasks': 'أضف مهمة أولا',
+        'AccDescrTodoTitleTooLong': 'العنوان طويل جدا',
+        'AccDescrTodoTaskTooLong': 'إحدى المهام طويلة جدا',
+        'AccDescrPollQuizLocked': 'بدأ هذا الاستطلاع كاختبار وسيبقى كذلك',
+        'AccDescrPollAddingOptionsLocked': 'غير ممكن عندما يكون الاستطلاع اختبارا أو يظهر من صوت',
+        'AccDescrTodoDone': 'تم',
+        'AccDescrTodoDoneBy': 'تم بواسطة %s',
+        'AccDescrPollVotedBy': 'صوت بواسطة %s',
+        'AccActionCopyText': 'نسخ %s',
+        'AccDescrChatMarkedUnread': 'محددة كغير مقروءة',
+        'AccDescrChatPinned': 'مثبتة',
+        'AccDescrChatBotVerified': 'بوت موثق',
+        'AccDescrChatVoiceChatActive': 'المحادثة الصوتية نشطة',
+        'AccDescrChatUnreadPollVotes': 'تحتوي على أصوات استطلاع جديدة',
+        'AccDescrNotificationsUnmuted': 'الإشعارات مفعلة',
+        'AccDescrCameraFront': 'الكاميرا الأمامية',
+        'AccDescrCameraBack': 'الكاميرا الخلفية',
+        'AccDescrDiceWin': 'فوز',
+        'AccDescrSlotBar': 'شريط',
+        'AccDescrSlotBerries': 'توت',
+        'AccDescrSlotLemon': 'ليمون',
+        'AccDescrSlotSeven': 'سبعة',
+        'AccDescrSlotJackpot': 'الجائزة الكبرى',
+        'AccDescrCustomEmojiNamed': '%1$s، رمز تعبيري مخصص',
+    }
+    for rel, mapping in (("values-fa/strings.xml", fa), ("values-fa-rIR/strings.xml", fa), ("values-ar/strings.xml", ar_fork)):
         path = RES / rel
         if not path.exists():
             continue
-        for name, value in fa.items():
+        for name, value in mapping.items():
             if f'name="{name}"' not in base:
                 continue  # the fork patch was not applied / key not present
             if f'name="{name}"' in path.read_text(encoding="utf-8"):
@@ -4859,7 +5089,14 @@ def patch_small_file_localization() -> None:
         "A11ySmallFilesOff": "دانلود نکردن فایل‌های کم‌حجم",
         "A11ySmallFilesPickerTitle": "دانلود خودکار فایل‌های کم‌حجم",
     }
-    for rel, values in (("values/strings.xml", en), ("values-fa/strings.xml", fa), ("values-fa-rIR/strings.xml", fa)):
+    ar = {
+        "A11ySmallFilesModeLabel": "التنزيل التلقائي للملفات الصغيرة: %s",
+        "A11ySmallFilesAuto": "تنزيل الملفات الصغيرة تلقائيا",
+        "A11ySmallFilesVoiceOnly": "عدم تنزيل الملفات الصغيرة باستثناء الرسائل الصوتية",
+        "A11ySmallFilesOff": "عدم تنزيل الملفات الصغيرة",
+        "A11ySmallFilesPickerTitle": "التنزيل التلقائي للملفات الصغيرة",
+    }
+    for rel, values in (("values/strings.xml", en), ("values-fa/strings.xml", fa), ("values-fa-rIR/strings.xml", fa), ("values-ar/strings.xml", ar)):
         path = RES / rel
         if not path.exists():
             continue
