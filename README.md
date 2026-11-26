@@ -27,7 +27,8 @@ Everything below is applied by `scripts/apply-a11y.py` on top of the latest offi
 - Share and the on-bubble Leave comment button are hidden between messages.
 - Reading by character and by word works inside a message.
 - **(setting)** Media album grouping ("photo 2 of 5"), admin / owner tags, "Downloaded / not downloaded" status, user status (typing, recording, online).
-- **(setting)** Solar (Persian) calendar for date headers and last seen.
+- **(setting)** Solar (Persian) calendar for date headers, last seen and topic rows.
+- "Download cancelled" is announced when you cancel a download.
 - **(setting)** Touch click sound when a chat opens or a message is tapped.
 
 ### Message options (long-press)
@@ -36,14 +37,16 @@ Everything below is applied by `scripts/apply-a11y.py` on top of the latest offi
 - **Bot buttons** — one item that opens the real bot actions.
 - **Reactions** — one item instead of a reaction strip in the way.
 - **Forward without quote** and **Forward to Saved Messages** next to Forward; **(setting)** Saved Messages without quote.
+- **(setting)** **Forward prompt** — with one or more messages selected, tapping Forward first asks: Forward or Forward without quote (instead of a second toolbar button). Off by default.
 - **(setting)** **Forward here** — sends the message again into the same chat.
-- **(setting)** **Links** — lists the links and @mentions of a message as written; t.me links open inside Telegram.
+- **(setting)** **Links** — lists the links and @mentions of a message as written (link name first, then the address); t.me links open inside Telegram.
 - **(setting)** Sender options (profile, send message, mention, search).
 - **(setting)** Share and Save to music for voice messages.
 
 ### Voice and audio
 - Voice message quality: Low / Medium (default) / High.
 - Vibration when recording starts; **(setting)** start beep.
+- **(setting)** Beep sound output for the download-finished and recording-start beeps: ringtone volume (default) or Telegram's own sounds.
 - **(setting)** Rewind and forward buttons in the audio player bar.
 
 ### Menus and toolbar
@@ -57,9 +60,9 @@ Everything below is applied by `scripts/apply-a11y.py` on top of the latest offi
 
 ### Other
 - Labels for unlabeled buttons (settings, contacts, video player, add member, and more).
-- Persian and English texts through `LocaleController`.
+- Persian, English and Arabic texts through `LocaleController` (Accessible settings and the strings this kit adds).
 - Features ported from Mehran Latifi's fork (see Credits).
-- APK size: **arm64-v8a only**; own package id and private signing key.
+- APK builds in three versions: universal, armeabi-v7a (arm7) and arm64-v8a (arm8a); own package id and private signing key.
 
 ---
 
@@ -111,7 +114,8 @@ Not affiliated with Telegram FZ-LLC. Use at your own risk.
 - Share و دکمهٔ Leave comment روی حباب بین پیام‌ها مخفی است.
 - خواندن حرف‌به‌حرف و کلمه‌به‌کلمه داخل پیام کار می‌کند.
 - **(تنظیم)** گروه‌بندی آلبوم («عکس ۲ از ۵»)، تگ ادمین / مالک، وضعیت «دانلود‌شده / دانلود‌نشده»، وضعیت کاربر (در حال تایپ، ضبط، آنلاین).
-- **(تنظیم)** تقویم خورشیدی برای سرتیتر تاریخ‌ها و آخرین بازدید.
+- **(تنظیم)** تقویم خورشیدی برای سرتیتر تاریخ‌ها، آخرین بازدید و ردیف تاپیک‌ها.
+- هنگام لغو دانلود «دانلود لغو شد» اعلام می‌شود.
 - **(تنظیم)** صدای لمس هنگام باز شدن چت یا ضربه روی پیام.
 
 ### گزینه‌های پیام (long-press)
@@ -120,14 +124,16 @@ Not affiliated with Telegram FZ-LLC. Use at your own risk.
 - **Bot buttons** — یک آیتم که دکمه‌های واقعی ربات را باز می‌کند.
 - **Reactions** — یک آیتم، به‌جای نوار واکنشِ مزاحم.
 - **Forward without quote** و **Forward to Saved Messages** کنار Forward؛ **(تنظیم)** ذخیره‌شده‌ها بدون نقل‌قول.
+- **(تنظیم)** **پرسش هنگام فوروارد** — وقتی یک یا چند پیام انتخاب شده و Forward را می‌زنی، اول می‌پرسد: Forward یا Forward without quote (به‌جای دکمهٔ دومِ نوار بالا). پیش‌فرض **خاموش**.
 - **(تنظیم)** **Forward here** — پیام را دوباره در همان چت می‌فرستد.
-- **(تنظیم)** **Links** — لینک‌ها و @منشن‌های پیام را همان‌طور که نوشته شده فهرست می‌کند؛ لینک‌های t.me داخل تلگرام باز می‌شوند.
+- **(تنظیم)** **Links** — لینک‌ها و @منشن‌های پیام را همان‌طور که نوشته شده فهرست می‌کند (اول نام لینک، بعد آدرس)؛ لینک‌های t.me داخل تلگرام باز می‌شوند.
 - **(تنظیم)** گزینه‌های فرستنده (پروفایل، ارسال پیام، منشن، جستجو).
 - **(تنظیم)** Share و Save to music برای پیام‌های صوتی.
 
 ### ویس و صدا
 - کیفیت پیام صوتی: Low / Medium (پیش‌فرض) / High.
 - لرزش هنگام شروع ضبط؛ **(تنظیم)** بوق شروع ضبط.
+- **(تنظیم)** خروجی صدای بوق (پایان دانلود و شروع ضبط): صدای زنگ (پیش‌فرض) یا صداهای خود تلگرام.
 - **(تنظیم)** دکمه‌های عقب و جلو در نوار پخش‌کنندهٔ صدا.
 
 ### منوها و نوار بالا
@@ -141,9 +147,9 @@ Not affiliated with Telegram FZ-LLC. Use at your own risk.
 
 ### سایر
 - برچسب برای دکمه‌های بدون برچسب (تنظیمات، مخاطبین، پخش ویدیو، افزودن عضو و ...).
-- متن‌های فارسی و انگلیسی با `LocaleController`.
+- متن‌های فارسی، انگلیسی و عربی با `LocaleController` (تنظیمات دسترس‌پذیر و رشته‌هایی که این کیت اضافه می‌کند).
 - قابلیت‌های برگرفته از فورک مهران لطیفی (بخش قدردانی).
-- حجم کمتر: فقط **arm64-v8a**؛ شناسهٔ پکیج و کلید امضای اختصاصی.
+- بیلد APK در سه نسخه: universal، armeabi-v7a (arm7) و arm64-v8a (arm8a)؛ شناسهٔ پکیج و کلید امضای اختصاصی.
 
 
 ## مجوز
