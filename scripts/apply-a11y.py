@@ -557,6 +557,7 @@ def _patch_a11y_string_resources() -> None:
         "A11yCategoryLabel": "Chat category filter in the chat list: %s",
         "A11yForwardHere": "Forward here",
         "A11yForwardHereLabel": "Forward here in message options: %s",
+        "A11yForwardChoiceLabel": "Ask Forward or Forward without quote when tapping Forward: %s",
         "A11yTabCountsLabel": "Counts on the media tabs of groups and channels: %s",
         "A11yDownloadBeepLabel": "Beep when a download finishes: %s",
         "A11yBeepOutputLabel": "Beep sound (download finished, recording start): %s",
@@ -646,6 +647,7 @@ def _patch_a11y_string_resources() -> None:
         "A11yCategoryLabel": "فیلتر دسته‌بندی چت‌ها در لیست چت: %s",
         "A11yForwardHere": "فوروارد همین‌جا",
         "A11yForwardHereLabel": "فوروارد همین‌جا در گزینه‌های پیام: %s",
+        "A11yForwardChoiceLabel": "پرسیدن «فوروارد» یا «فوروارد بدون نقل‌قول» بعد از زدن دکمه‌ی فوروارد: %s",
         "A11yTabCountsLabel": "نمایش تعداد روی تب‌های رسانه‌ی گروه و کانال: %s",
         "A11yDownloadBeepLabel": "بوق پایان دانلود: %s",
         "A11yBeepOutputLabel": "صدای بوق (پایان دانلود و شروع ضبط): %s",
@@ -753,6 +755,7 @@ def _patch_a11y_string_resources() -> None:
         "A11yCategoryLabel": "مرشح تصنيف المحادثات في قائمة المحادثات: %s",
         "A11yForwardHere": "إعادة توجيه هنا",
         "A11yForwardHereLabel": "إعادة توجيه هنا في خيارات الرسالة: %s",
+        "A11yForwardChoiceLabel": "السؤال بين إعادة التوجيه وإعادة التوجيه بدون اقتباس عند الضغط على إعادة التوجيه: %s",
         "A11yTabCountsLabel": "الأعداد على تبويبات الوسائط للمجموعات والقنوات: %s",
         "A11yDownloadBeepLabel": "صوت تنبيه عند اكتمال التنزيل: %s",
         "A11yBeepOutputLabel": "صوت التنبيه (اكتمال التنزيل، بدء التسجيل): %s",
@@ -1541,7 +1544,7 @@ def patch_forward_menu_extras() -> None:
             "    }\n\n"
             "    private void openForward(boolean fromActionBar, boolean a11ySkipPrompt) {\n"
             "        // a11y-fork: multi-select forward without quote\n"
-            "        if (!a11ySkipPrompt && !isPeerNoForwards() && !hasSelectedNoforwardsMessage() && getParentActivity() != null) {\n"
+            "        if (!a11ySkipPrompt && org.telegram.messenger.A11yConfig.getForwardChoice() && !isPeerNoForwards() && !hasSelectedNoforwardsMessage() && getParentActivity() != null) {\n"
             "            CharSequence[] fwdChoices = new CharSequence[]{\n"
             "                LocaleController.getString(R.string.Forward),\n"
             "                LocaleController.getString(R.string.A11yForwardWithoutQuote)\n"
@@ -3251,6 +3254,69 @@ def patch_mehran_strings_persian() -> None:
             path.write_text(txt.replace("</resources>", f'    <string name="{name}">{esc}</string>\n</resources>'), encoding="utf-8")
             n += 1
     print("Persian strings for the fork's additions OK (%d written)" % n)
+
+def patch_forward_choice_setting() -> None:
+    """Accessible Settings switch (default Off) for the Forward / Forward without quote list.
+
+    Adds A11yConfig.getForwardChoice()/setForwardChoice(), a settings row and its toggle. The row index is
+    counted from the rows already there, so it can run after the other settings patches."""
+    cfgp = JAVA / "org/telegram/messenger/A11yConfig.java"
+    if not cfgp.exists():
+        print("WARN: A11yConfig.java missing (forward choice setting)")
+        return
+    t = cfgp.read_text(encoding="utf-8")
+    marker = "a11y-fork: forward choice setting"
+    if marker in t:
+        print("A11yConfig forward choice setting already patched")
+        return
+    m = re.search(r"private static java\.util\.ArrayList<String> buildSettingsItems\(\) \{\n(.*?)\n        return items;\n    \}\n", t, re.S)
+    if not m:
+        print("WARN: A11yConfig buildSettingsItems not found (forward choice setting)")
+        return
+    row_index = m.group(1).count("items.add(")
+    row = "        items.add(LocaleController.formatString(R.string.A11yForwardChoiceLabel, onOff(getForwardChoice())));"
+    t = t[:m.end(1)] + "\n" + row + t[m.end(1):]
+
+    old = ("                default:\n"
+           "                    return;\n"
+           "            }\n"
+           "            refresh.run();\n")
+    if t.count(old) != 1:
+        print("WARN: A11yConfig settings switch anchor not found (forward choice setting)")
+        return
+    t = t.replace(old, ("                case %d:\n"
+                        "                    setForwardChoice(!getForwardChoice());\n"
+                        "                    message = LocaleController.formatString(R.string.A11yForwardChoiceLabel, onOff(getForwardChoice()));\n"
+                        "                    break;\n") % row_index + old, 1)
+
+    anchor = "    private static void showVoiceQualityPicker(final Activity activity, final Runnable onChanged) {\n"
+    if t.count(anchor) != 1:
+        print("WARN: A11yConfig showVoiceQualityPicker anchor not found (forward choice setting)")
+        return
+    code = """    // a11y-fork: forward choice setting
+    public static final String PREF_FORWARD_CHOICE = "a11y_forward_choice";
+
+    /** Ask "Forward" or "Forward without quote" when the Forward button is tapped on selected messages. Default OFF. */
+    public static boolean getForwardChoice() {
+        try {
+            return MessagesController.getGlobalMainSettings().getBoolean(PREF_FORWARD_CHOICE, false);
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    public static void setForwardChoice(boolean value) {
+        try {
+            MessagesController.getGlobalMainSettings().edit().putBoolean(PREF_FORWARD_CHOICE, value).apply();
+        } catch (Throwable ignore) {
+        }
+    }
+
+"""
+    t = t.replace(anchor, code + anchor, 1)
+    cfgp.write_text(t, encoding="utf-8")
+    print("Forward choice setting (Accessible Settings, default Off) OK")
+
 
 # ---- legacy versions, used only when the fork patch is NOT applied (plain upstream tree) ----
 def patch_dialogcell_preview_muted_status_legacy() -> None:
@@ -8034,6 +8100,7 @@ def main() -> int:
     patch_round3_link_long_press_copy()
     patch_round3_download_beep()
     patch_beep_output()
+    patch_forward_choice_setting()
     patch_download_cancel_announce()
     patch_private_seen_loading_text()
     patch_round3_category_folders()
